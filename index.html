@@ -235,6 +235,8 @@ button.cliente:disabled { opacity: .5; cursor: default; }
 .clNombre { grid-column: 1; grid-row: 1; font-size: 16px; font-weight: 650; color: var(--tinta); }
 .clDatos  { grid-column: 1; grid-row: 2; font-size: 12px; color: var(--tinta-3); }
 .clFechas { grid-column: 2; grid-row: 1 / span 2; font-size: 12px; color: var(--tinta-3); align-self: center; }
+.cargando { background: var(--plano); border: 1px solid var(--borde); border-radius: 7px;
+  padding: 11px 13px; font-size: 13px; color: var(--tinta-2); }
 
 </style>
 </head>
@@ -242,7 +244,7 @@ button.cliente:disabled { opacity: .5; cursor: default; }
 
 <header class="barra">
   <span class="logo">INCERTIS ANUBIS</span>
-  <span class="sub">Panel de análisis · v3.2</span>
+  <span class="sub">Panel de análisis · v3.3</span>
   <span class="der">
     <button class="fantasma" id="btnTema" title="Cambiar tema">Tema</button>
     <button class="fantasma" id="btnInforme" title="Descargar el informe en .pptx, que Keynote abre">Descargar informe</button>
@@ -1171,7 +1173,7 @@ ${slides.map((_, i) => `<Relationship Id="rId${i + 2}" Type="${NS_R}/slide" Targ
 </script>
 <script>
 'use strict';
-const VERSION = '3.2';
+const VERSION = '3.3';
 console.log('[ANUBIS] panel de análisis v' + VERSION);
 
 // ====================================================================
@@ -1578,6 +1580,7 @@ async function listarDeGitHub() {
 
     $$('[data-cliente]').forEach(b => b.addEventListener('click', () => {
       const cl = clientes[parseInt(b.dataset.cliente, 10)];
+      console.log('[ANUBIS] abriendo cliente', cl.nombre, cl.dias.map(d => d.archivo));
       bajarDeGitHub(cfg, cl.dias, cl.nombre);
     }));
 
@@ -1604,18 +1607,35 @@ async function listarDeGitHub() {
   }
 }
 
+// Un aviso que no se pueda pasar por alto. La línea gris del encabezado servía
+// para el que ya sabe qué mira; para el que aprieta un botón y no ve nada, no.
+function avisoCarga(texto, malo) {
+  let caja = $('#ghAviso');
+  if (!caja) {
+    caja = document.createElement('div');
+    caja.id = 'ghAviso';
+    const donde = $('#ghLista') || $('#desdeGitHub');
+    if (donde) donde.insertBefore(caja, donde.firstChild);
+  }
+  caja.className = malo ? 'aviso' : 'cargando';
+  caja.style.margin = '0 0 12px';
+  caja.innerHTML = texto;
+}
+
 async function bajarDeGitHub(cfg, elegidas, cliente) {
   const msg = $('#ghMsg');
-  if (!elegidas || !elegidas.length) { msg.textContent = 'No hay nada marcado.'; return; }
+  if (!elegidas || !elegidas.length) { avisoCarga('No hay nada marcado.', true); return; }
   const btn = $('#ghCargar');
   if (btn) btn.disabled = true;
   $$('[data-cliente]').forEach(b => { b.disabled = true; });
   let n = 0, p = 0, repetidas = 0;
   try {
     for (const c of elegidas) {
-      msg.textContent = elegidas.length > 1
-        ? `Bajando ${cliente || ''} ${n + 1} de ${elegidas.length}…`
-        : 'Bajando…';
+      const paso = elegidas.length > 1
+        ? `Abriendo ${escapar(cliente || '')}: día ${n + 1} de ${elegidas.length}…`
+        : `Abriendo ${escapar(cliente || '')}…`;
+      msg.textContent = paso;
+      avisoCarga(paso);
       if (D.ejecuciones.some(e => e.id === c.archivo)) { n++; continue; }
       const texto = await GitHub.bajarCaptura(cfg, c.archivo);
       const posts = [];
@@ -1640,23 +1660,35 @@ async function bajarDeGitHub(cfg, elegidas, cliente) {
       ? `${n} captura(s), ${fmt(p)} publicaciones.` +
         (repetidas ? ` ${fmt(repetidas)} repetidas, descartadas: alguien más capturó lo mismo.` : '')
       : 'Esas capturas ya estaban cargadas.';
-    console.log(`[ANUBIS] GitHub: ${n} captura(s), ${p} publicaciones`);
-    if (!D.posts.length) return;
-    if (typeof DISPONIBLES !== 'undefined') DISPONIBLES.listo = false;
-    prepararFiltros();
-    // Abrir un cliente lo deja seleccionado: si el archivo traía dos mercados,
-    // el que pediste es el que tiene que quedar a la vista.
-    if (cliente) {
-      const sel = $('#fMercado');
-      const op = Array.from(sel.options).find(o => o.value === cliente);
-      if (op) sel.value = cliente;
+    console.log(`[ANUBIS] GitHub: ${n} captura(s), ${p} publicaciones, ${D.posts.length} en total`);
+    if (!D.posts.length) {
+      avisoCarga('Se bajaron los archivos pero no tenían ninguna publicación adentro.', true);
+      return;
     }
-    render();
-    // Sin esto el cambio ocurre arriba, fuera de la pantalla, y parece que el
-    // botón no hizo nada.
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Dibujar es la parte que puede fallar por una razón distinta de bajar, y
+    // confundir las dos hace imposible saber qué arreglar.
+    try {
+      if (typeof DISPONIBLES !== 'undefined') DISPONIBLES.listo = false;
+      prepararFiltros();
+      // Abrir un cliente lo deja seleccionado: si el archivo traía dos mercados,
+      // el que pediste es el que tiene que quedar a la vista.
+      if (cliente) {
+        const sel = $('#fMercado');
+        const op = Array.from(sel.options).find(o => o.value === cliente);
+        if (op) sel.value = cliente;
+      }
+      render();
+      window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+    } catch (e) {
+      console.error('[ANUBIS] al dibujar', e);
+      avisoCarga(`<strong>Los datos se bajaron pero el panel no pudo dibujarlos.</strong><br>` +
+        `${escapar(e.message)}<br><br>${fmt(D.posts.length)} publicaciones cargadas. ` +
+        `El detalle está en la consola (clic derecho, Inspeccionar, Console).`, true);
+    }
   } catch (e) {
-    msg.textContent = 'Falló: ' + e.message;
+    console.error('[ANUBIS] al bajar', e);
+    avisoCarga(`<strong>No se pudieron bajar los datos.</strong><br>${escapar(e.message)}`, true);
   } finally {
     if (btn) btn.disabled = false;
     $$('[data-cliente]').forEach(b => { b.disabled = false; });
