@@ -224,13 +224,25 @@ textarea { width: 100%; font: inherit; padding: 10px 12px; border-radius: 6px;
 button.chico { font-size: 12px; padding: 5px 11px; }
 #vLienzo { display: block; max-height: 62vh; object-fit: contain; }
 
+/* ---------- elegir cliente ---------- */
+button.cliente {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 14px;
+  width: 100%; text-align: left; padding: 13px 16px; border-radius: 9px;
+  border: 1px solid var(--borde); background: var(--sup); cursor: pointer;
+}
+button.cliente:hover { border-color: var(--marca); background: var(--plano); }
+button.cliente:disabled { opacity: .5; cursor: default; }
+.clNombre { grid-column: 1; grid-row: 1; font-size: 16px; font-weight: 650; color: var(--tinta); }
+.clDatos  { grid-column: 1; grid-row: 2; font-size: 12px; color: var(--tinta-3); }
+.clFechas { grid-column: 2; grid-row: 1 / span 2; font-size: 12px; color: var(--tinta-3); align-self: center; }
+
 </style>
 </head>
 <body>
 
 <header class="barra">
   <span class="logo">INCERTIS ANUBIS</span>
-  <span class="sub">Panel de análisis · v3.0</span>
+  <span class="sub">Panel de análisis · v3.2</span>
   <span class="der">
     <button class="fantasma" id="btnTema" title="Cambiar tema">Tema</button>
     <button class="fantasma" id="btnInforme" title="Descargar el informe en .pptx, que Keynote abre">Descargar informe</button>
@@ -1159,7 +1171,7 @@ ${slides.map((_, i) => `<Relationship Id="rId${i + 2}" Type="${NS_R}/slide" Targ
 </script>
 <script>
 'use strict';
-const VERSION = '3.0';
+const VERSION = '3.2';
 console.log('[ANUBIS] panel de análisis v' + VERSION);
 
 // ====================================================================
@@ -1452,15 +1464,17 @@ function configGh() {
   };
 }
 
+// Quien entra con contraseña no configura nada: el dueño, el repositorio y el
+// token salieron del archivo cifrado. Mostrarle esos campos es pedirle que
+// entienda una plomería que no le corresponde.
+function conCandado() {
+  return typeof ACCESO !== 'undefined' && !!(ACCESO.cfg && ACCESO.cfg.cifrado);
+}
+
 function mostrarGitHub() {
   const cont = document.getElementById('desdeGitHub');
   const c = configGh();
-  cont.innerHTML = `
-    <div class="tarjeta" style="text-align:left">
-      <div class="cabTarjeta"><div class="crece">
-        <h3>Archivo del equipo</h3>
-        <p class="sub">Repositorio privado con los datos de cada día</p>
-      </div></div>
+  const credenciales = conCandado() ? '' : `
       <div class="par" style="gap:12px">
         <label class="explica" style="display:block">Dueño
           <input type="text" id="ghD" value="${escapar(c.duenio)}" placeholder="tu-usuario-de-github" style="width:100%;margin-top:6px"></label>
@@ -1472,19 +1486,57 @@ function mostrarGitHub() {
         <input type="password" id="ghT" value="${escapar(c.token)}" placeholder="github_pat_…" style="width:100%;margin-top:6px"></label>
       <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap">
         <button class="primario" id="ghListar" style="background:var(--marca);color:#fff">Ver qué hay</button>
-        <span id="ghMsg" style="font-size:12px;color:var(--tinta-3)"></span>
-      </div>
+        <span id="ghMsgTop" style="font-size:12px;color:var(--tinta-3)"></span>
+      </div>`;
+
+  cont.innerHTML = `
+    <div class="tarjeta" style="text-align:left">
+      <div class="cabTarjeta"><div class="crece">
+        <h3>Disponibles</h3>
+        <p class="sub" id="ghMsg">Elegí qué querés analizar</p>
+      </div></div>
+      ${credenciales}
       <div id="ghLista"></div>
     </div>`;
   cont.classList.remove('oculto');
-  document.getElementById('ghListar').addEventListener('click', listarDeGitHub);
+  const b = document.getElementById('ghListar');
+  if (b) b.addEventListener('click', listarDeGitHub);
 }
 
 function guardarConfigGh() {
+  if (!$('#ghD')) return configGh();   // con candado no hay campos que leer
   guardarLocal('anubis_gh_duenio', $('#ghD').value.trim());
   guardarLocal('anubis_gh_repo', $('#ghR').value.trim());
   guardarLocal('anubis_gh_token', $('#ghT').value.trim());
   return { duenio: $('#ghD').value.trim(), repo: $('#ghR').value.trim(), token: $('#ghT').value.trim() };
+}
+
+// Un cliente es un mercado: como los nombra el recolector. Una corrida con dos
+// mercados activos deja un archivo que pertenece a los dos, así que se cuenta
+// en ambos grupos; el filtro de mercado del panel los separa después.
+function agruparPorCliente(capturas) {
+  const grupos = new Map();
+  capturas.forEach((c, i) => {
+    const nombres = String(c.mercado || 'Sin nombre').split(' + ').map(s => s.trim()).filter(Boolean);
+    for (const n of (nombres.length ? nombres : ['Sin nombre'])) {
+      if (!grupos.has(n)) grupos.set(n, []);
+      grupos.get(n).push({ ...c, i });
+    }
+  });
+  return [...grupos.entries()].map(([nombre, dias]) => {
+    dias.sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
+    return {
+      nombre, dias,
+      publicaciones: dias.reduce((s, d) => s + (d.publicaciones || 0), 0),
+      cuentas: [...new Set(dias.flatMap(d => d.cuentas || []))],
+      desde: dias[dias.length - 1].fecha, hasta: dias[0].fecha
+    };
+  }).sort((a, b) => b.dias.length - a.dias.length || a.nombre.localeCompare(b.nombre));
+}
+
+function fechaCorta(f) {
+  const d = new Date(String(f) + 'T12:00:00');
+  return isNaN(d) ? String(f) : d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
 }
 
 async function listarDeGitHub() {
@@ -1499,44 +1551,71 @@ async function listarDeGitHub() {
       msg.textContent = 'El repositorio está vacío: todavía no se publicó ninguna captura.';
       return;
     }
-    msg.textContent = `${idx.capturas.length} captura(s) en el repositorio.`;
-    lista.innerHTML = `
-      <div style="display:flex;gap:10px;align-items:center;margin:14px 0 8px">
-        <button id="ghTodas">Marcar todas</button>
-        <button id="ghNinguna">Ninguna</button>
-      </div>
-      <div id="ghItems" style="display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto">
-        ${idx.capturas.map((c, i) => `
-          <label style="display:flex;gap:9px;align-items:center;border:1px solid var(--borde);
-            border-radius:6px;padding:8px 11px;cursor:pointer">
-            <input type="checkbox" data-i="${i}" style="width:auto">
-            <span style="flex:1">${escapar(c.fecha)} · ${escapar(c.mercado || '')}
-              <span style="color:var(--tinta-3);font-size:12px"> · ${fmt(c.publicaciones)} publicaciones
-              · ${escapar((c.cuentas || []).map(h => '@' + h).join(', '))}</span></span>
-          </label>`).join('')}
-      </div>
-      <button class="primario" id="ghCargar" style="background:var(--marca);color:#fff;margin-top:12px">Cargar las marcadas</button>`;
+    // Un renglón por cliente, no por archivo. Nadie piensa en "2026-09-14_
+    // Argentina.jsonl"; piensan en Clarín y en cuántos días hay.
+    const clientes = agruparPorCliente(idx.capturas);
+    msg.textContent = clientes.length === 1
+      ? `${clientes[0].dias.length} día(s) publicados`
+      : `${clientes.length} clientes · ${idx.capturas.length} día(s) publicados`;
 
-    $('#ghTodas').addEventListener('click', () =>
-      $$('#ghItems input').forEach(i => { i.checked = true; }));
-    $('#ghNinguna').addEventListener('click', () =>
-      $$('#ghItems input').forEach(i => { i.checked = false; }));
-    $('#ghCargar').addEventListener('click', () => bajarDeGitHub(cfg, idx.capturas));
+    lista.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
+        ${clientes.map((cl, k) => `
+          <button class="cliente" data-cliente="${k}">
+            <span class="clNombre">${escapar(cl.nombre)}</span>
+            <span class="clDatos">${cl.dias.length} día${cl.dias.length === 1 ? '' : 's'}
+              · ${fmt(cl.publicaciones)} publicaciones
+              · ${cl.cuentas.length} cuenta${cl.cuentas.length === 1 ? '' : 's'}</span>
+            <span class="clFechas">${cl.dias.length > 1
+              ? fechaCorta(cl.desde) + ' a ' + fechaCorta(cl.hasta)
+              : fechaCorta(cl.hasta)}</span>
+          </button>`).join('')}
+      </div>
+      <p style="margin:14px 0 0">
+        <button id="ghDetalle" style="font-size:12px">Elegir días sueltos</button></p>
+      <div id="ghItems" class="oculto" style="display:flex;flex-direction:column;gap:6px;max-height:300px;overflow:auto;margin-top:10px"></div>
+      <div id="ghPie"></div>`;
+
+    $$('[data-cliente]').forEach(b => b.addEventListener('click', () => {
+      const cl = clientes[parseInt(b.dataset.cliente, 10)];
+      bajarDeGitHub(cfg, cl.dias, cl.nombre);
+    }));
+
+    $('#ghDetalle').addEventListener('click', () => {
+      const cont = $('#ghItems');
+      if (!cont.classList.contains('oculto')) { cont.classList.add('oculto'); $('#ghPie').innerHTML = ''; return; }
+      cont.innerHTML = idx.capturas.map((c, i) => `
+        <label style="display:flex;gap:9px;align-items:center;border:1px solid var(--borde);
+          border-radius:6px;padding:8px 11px;cursor:pointer">
+          <input type="checkbox" data-i="${i}" style="width:auto">
+          <span style="flex:1">${escapar(fechaCorta(c.fecha))} · ${escapar(c.mercado || '')}
+            <span style="color:var(--tinta-3);font-size:12px"> · ${fmt(c.publicaciones)} publicaciones</span></span>
+        </label>`).join('');
+      cont.classList.remove('oculto');
+      $('#ghPie').innerHTML = `<button class="primario" id="ghCargar"
+        style="background:var(--marca);color:#fff;margin-top:12px">Cargar los marcados</button>`;
+      $('#ghCargar').addEventListener('click', () => {
+        const elegidas = $$('#ghItems input:checked').map(i => idx.capturas[parseInt(i.dataset.i, 10)]);
+        bajarDeGitHub(cfg, elegidas);
+      });
+    });
   } catch (e) {
     msg.textContent = e.message;
   }
 }
 
-async function bajarDeGitHub(cfg, capturas) {
-  const elegidas = $$('#ghItems input:checked').map(i => capturas[parseInt(i.dataset.i, 10)]);
+async function bajarDeGitHub(cfg, elegidas, cliente) {
   const msg = $('#ghMsg');
-  if (!elegidas.length) { msg.textContent = 'No marcaste ninguna.'; return; }
+  if (!elegidas || !elegidas.length) { msg.textContent = 'No hay nada marcado.'; return; }
   const btn = $('#ghCargar');
-  btn.disabled = true;
+  if (btn) btn.disabled = true;
+  $$('[data-cliente]').forEach(b => { b.disabled = true; });
   let n = 0, p = 0, repetidas = 0;
   try {
     for (const c of elegidas) {
-      msg.textContent = `Bajando ${c.archivo}… (${n + 1} de ${elegidas.length})`;
+      msg.textContent = elegidas.length > 1
+        ? `Bajando ${cliente || ''} ${n + 1} de ${elegidas.length}…`
+        : 'Bajando…';
       if (D.ejecuciones.some(e => e.id === c.archivo)) { n++; continue; }
       const texto = await GitHub.bajarCaptura(cfg, c.archivo);
       const posts = [];
@@ -1565,11 +1644,22 @@ async function bajarDeGitHub(cfg, capturas) {
     if (!D.posts.length) return;
     if (typeof DISPONIBLES !== 'undefined') DISPONIBLES.listo = false;
     prepararFiltros();
+    // Abrir un cliente lo deja seleccionado: si el archivo traía dos mercados,
+    // el que pediste es el que tiene que quedar a la vista.
+    if (cliente) {
+      const sel = $('#fMercado');
+      const op = Array.from(sel.options).find(o => o.value === cliente);
+      if (op) sel.value = cliente;
+    }
     render();
+    // Sin esto el cambio ocurre arriba, fuera de la pantalla, y parece que el
+    // botón no hizo nada.
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (e) {
     msg.textContent = 'Falló: ' + e.message;
   } finally {
-    btn.disabled = false;
+    if (btn) btn.disabled = false;
+    $$('[data-cliente]').forEach(b => { b.disabled = false; });
   }
 }
 
@@ -3702,22 +3792,17 @@ async function abrirCandado(contrasena, recordar, silencioso) {
 function restaurarVacio() {
   const v = document.getElementById('vacio');
   if (!v) return;
+  // Adentro del candado no hay nada que elegir salvo el cliente: cargar desde
+  // una carpeta o desde archivos sueltos es plomería del que recolecta.
   v.innerHTML = `
     <h2>Incertis Anubis</h2>
-    <p>Elegí qué días querés analizar.</p>
     <div id="desdeNavegador" class="oculto" style="margin:26px 0 10px"></div>
     <div id="desdeCarpeta" class="oculto" style="margin:22px 0 10px"></div>
-    <p style="margin-top:24px;font-size:13px;color:var(--tinta-3)">
-      <button id="btnGitHub">Cargar desde GitHub</button>
-      <button id="btnCargar2">o desde una carpeta</button>
-      <button id="btnArchivos">o archivos sueltos</button>
-    </p>
     <div id="desdeGitHub" class="oculto" style="margin:22px auto 10px;max-width:560px;text-align:left"></div>
     <p style="margin-top:26px">
       <button id="accSalir" style="font-size:12px">Salir</button></p>`;
-  $('#btnGitHub').addEventListener('click', mostrarGitHub);
-  $('#btnCargar2').addEventListener('click', () => $('#selCarpeta').click());
-  $('#btnArchivos').addEventListener('click', () => $('#selArchivos').click());
+  const cargar = document.getElementById('btnCargar');
+  if (cargar) cargar.classList.add('oculto');
   $('#accSalir').addEventListener('click', () => {
     guardarLocal('anubis_acc', '');
     guardarLocal('anubis_gh_token', '');
