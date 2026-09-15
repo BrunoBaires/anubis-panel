@@ -230,7 +230,7 @@ button.chico { font-size: 12px; padding: 5px 11px; }
 
 <header class="barra">
   <span class="logo">INCERTIS ANUBIS</span>
-  <span class="sub">Panel de análisis · v2.9</span>
+  <span class="sub">Panel de análisis · v3.0</span>
   <span class="der">
     <button class="fantasma" id="btnTema" title="Cambiar tema">Tema</button>
     <button class="fantasma" id="btnInforme" title="Descargar el informe en .pptx, que Keynote abre">Descargar informe</button>
@@ -1159,7 +1159,7 @@ ${slides.map((_, i) => `<Relationship Id="rId${i + 2}" Type="${NS_R}/slide" Targ
 </script>
 <script>
 'use strict';
-const VERSION = '2.9';
+const VERSION = '3.0';
 console.log('[ANUBIS] panel de análisis v' + VERSION);
 
 // ====================================================================
@@ -1554,10 +1554,15 @@ async function bajarDeGitHub(cfg, capturas) {
       const r = agregarPosts(posts);
       n++; p += r.sumados; repetidas += r.repetidos;
     }
-    if (!p) { msg.textContent = 'Esas capturas ya estaban cargadas.'; return; }
-    msg.textContent = `${n} captura(s), ${fmt(p)} publicaciones.` +
-      (repetidas ? ` ${fmt(repetidas)} repetidas, descartadas: alguien más capturó lo mismo.` : '');
+    // Que no haya publicaciones nuevas no significa que no haya nada que ver:
+    // lo más probable es que ya estuvieran cargadas. Antes se devolvía sin
+    // renderizar y el usuario quedaba trabado en la pantalla de carga.
+    msg.textContent = p
+      ? `${n} captura(s), ${fmt(p)} publicaciones.` +
+        (repetidas ? ` ${fmt(repetidas)} repetidas, descartadas: alguien más capturó lo mismo.` : '')
+      : 'Esas capturas ya estaban cargadas.';
     console.log(`[ANUBIS] GitHub: ${n} captura(s), ${p} publicaciones`);
+    if (!D.posts.length) return;
     if (typeof DISPONIBLES !== 'undefined') DISPONIBLES.listo = false;
     prepararFiltros();
     render();
@@ -1615,7 +1620,7 @@ async function prepararDelNavegador() {
       D.ejecuciones.push({ id: paq.id, periodo: (paq.resumen && paq.resumen.periodo) || null, resumen: paq.resumen });
       n++; p += agregarPosts(paq.posts).sumados;
     }
-    if (!n) { alert('Esas capturas ya estaban cargadas.'); return; }
+    if (!n && !D.posts.length) { alert('Esas capturas ya estaban cargadas.'); return; }
     console.log(`[ANUBIS] ${n} captura(s) del navegador, ${p} publicaciones`);
     prepararFiltros();
     render();
