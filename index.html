@@ -201,26 +201,73 @@ table.datos td { font-variant-numeric: tabular-nums; }
 /* ---------- preguntas ---------- */
 textarea { width: 100%; font: inherit; padding: 10px 12px; border-radius: 6px;
   border: 1px solid var(--borde); background: var(--sup); color: var(--tinta); resize: vertical; }
-/* La respuesta se lee como una nota: columna angosta, porque una línea de
-   ciento veinte caracteres obliga al ojo a buscar dónde empieza la siguiente.
-   Tablas y gráficos sí pueden ocupar todo el ancho: ahí el dato es la forma. */
-.respuesta { background: var(--plano); border: 1px solid var(--borde);
-  border-radius: 8px; padding: 22px 26px; margin-top: 14px; }
-.respuesta > * { max-width: 62ch; }
-.respuesta > .envTabla, .respuesta > .figIA, .respuesta > pre { max-width: 100%; }
-.respuesta p { margin: 0 0 14px; line-height: 1.62; font-size: 15px; }
-.respuesta p:last-child { margin-bottom: 0; }
-.respuesta h3 { font-size: 15px; margin: 22px 0 8px; letter-spacing: -.01em; }
-.respuesta h3:first-child { margin-top: 0; }
-.respuesta ul, .respuesta ol { margin: 0 0 14px; padding-left: 22px; line-height: 1.6; font-size: 15px; }
-.respuesta li { margin-bottom: 5px; }
-.respuesta code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
-  background: var(--sup); border: 1px solid var(--borde); border-radius: 4px; padding: 1px 5px; }
-.respuesta pre { background: var(--sup); border: 1px solid var(--borde); border-radius: 6px;
-  padding: 12px 14px; overflow-x: auto; font-size: 13px; }
-.respuesta .envTabla, .respuesta .figIA { margin: 18px 0; }
+/* ---------- la respuesta, maquetada como una nota ----------
+   El ancho de la columna es fijo en píxeles y no crece con la ventana. Esa es
+   la regla: una medida cómoda son 65 a 75 caracteres por línea, y en una
+   pantalla ancha una columna elástica llega a 150 y el ojo pierde el renglón
+   al volver. Así que la columna se planta en 660 px y el espacio que sobra
+   queda como margen, igual que en una página impresa. */
+.nota { max-width: 660px; margin: 22px auto 0; }
+.nota .firma { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  font-size: 11px; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--tinta-3); border-bottom: 2px solid var(--tinta); padding-bottom: 8px; margin-bottom: 20px; }
+.nota .firma b { color: var(--tinta); letter-spacing: .06em; }
+.nota .firma .crece { flex: 1; }
+
+/* El tope va también acá y no sólo en .nota: si algún día una respuesta se
+   pinta sin el envoltorio, la columna tiene que seguir siendo legible igual. */
+.respuesta { max-width: 660px; margin-left: auto; margin-right: auto;
+  font-size: 16px; line-height: 1.68; color: var(--tinta); }
+.respuesta > *:first-child { margin-top: 0; }
+.respuesta > *:last-child { margin-bottom: 0; }
+.respuesta p { margin: 0 0 16px; }
+/* La bajada: el primer párrafo entra más grande, como en cualquier nota. */
+.respuesta > p:first-of-type { font-size: 18px; line-height: 1.55; color: var(--tinta);
+  margin-bottom: 20px; }
+.respuesta h3 { font-size: 17px; line-height: 1.3; margin: 30px 0 10px;
+  letter-spacing: -.012em; padding-top: 14px; border-top: 1px solid var(--borde); }
+.respuesta h3:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.respuesta ul, .respuesta ol { margin: 0 0 16px; padding-left: 24px; }
+.respuesta li { margin-bottom: 7px; padding-left: 2px; }
+.respuesta strong { font-weight: 650; }
+.respuesta code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .88em;
+  background: var(--plano); border: 1px solid var(--borde); border-radius: 4px; padding: 1px 5px; }
+.respuesta pre { background: var(--plano); border: 1px solid var(--borde); border-radius: 6px;
+  padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+/* Tablas y gráficos se salen un poco de la columna de texto, como una foto a
+   sangre: siguen dentro de la nota, pero se los ve como lo que son. */
+.respuesta .envTabla, .respuesta .figIA { margin: 24px -30px; }
+.respuesta .envTabla table.datos { font-size: 14px; }
 .figIA { margin: 0; }
-.figIA figcaption { font-size: 13px; color: var(--tinta-2); margin-bottom: 10px; }
+.figIA figcaption { font-size: 13px; color: var(--tinta-2); margin-bottom: 12px;
+  padding: 0 30px; }
+.figIA .barras { padding: 0 30px; }
+.figIA > .explica { padding: 0 30px; }
+@media (max-width: 760px) {
+  .respuesta .envTabla, .respuesta .figIA { margin-left: 0; margin-right: 0; }
+  .figIA figcaption, .figIA .barras, .figIA > .explica { padding: 0; }
+}
+
+/* ---------- avisar que está pensando ---------- */
+/* Sin esto, entre que uno deja de hablar y aparece la respuesta hay diez
+   segundos en los que la pantalla no dice nada y parece que se colgó. */
+.trabajando { max-width: 660px; margin: 22px auto 0; }
+/* El riel tiene que verse aunque la barra esté en el extremo del recorrido:
+   si el riel es invisible, medio ciclo de cada uno parece pantalla vacía. */
+.barraIndet { height: 4px; background: var(--borde); border-radius: 99px; overflow: hidden; }
+.barraIndet > div { height: 100%; width: 34%; border-radius: 99px; background: var(--marca);
+  animation: correr 1.25s cubic-bezier(.45,0,.55,1) infinite; }
+@keyframes correr {
+  0%   { transform: translateX(-60%); }
+  100% { transform: translateX(354%); }
+}
+.trabajando .paso { display: flex; align-items: baseline; gap: 10px;
+  margin: 10px 0 0; font-size: 13px; color: var(--tinta-2); }
+.trabajando .paso .crece { flex: 1; }
+.trabajando .reloj { font-variant-numeric: tabular-nums; color: var(--tinta-3); }
+@media (prefers-reduced-motion: reduce) {
+  .barraIndet > div { animation: none; width: 100%; opacity: .45; }
+}
 
 /* Caja de pregunta: micrófono, campo y enviar en una sola línea */
 .cajaPregunta { display: flex; align-items: flex-end; gap: 10px; }
@@ -282,7 +329,7 @@ button.cliente:disabled { opacity: .5; cursor: default; }
 
 <header class="barra">
   <span class="logo">INCERTIS ANUBIS</span>
-  <span class="sub">Panel de análisis · v3.6</span>
+  <span class="sub">Panel de análisis · v3.8</span>
   <span class="der">
     <button class="fantasma" id="btnTema" title="Cambiar tema">Tema</button>
     <button class="fantasma" id="btnInforme" title="Descargar el informe en .pptx, que Keynote abre">Descargar informe</button>
@@ -2267,30 +2314,12 @@ const PROMPT_CLAS =
   'Respondés SÓLO un array JSON con un objeto por publicación, en el mismo orden, sin texto alrededor. ' +
   'Si una publicación está cortada, clasificás con lo que hay.';
 
-async function llamarModelo(prov, clave, modelo, sistema, usuario, maxTokens) {
-  if (prov === 'anthropic') {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-api-key': clave,
-                 'anthropic-version': '2023-06-01',
-                 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({ model: modelo, max_tokens: maxTokens || 2000, system: sistema,
-        messages: [{ role: 'user', content: usuario }] })
-    });
-    const j = await r.json();
-    if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
-    return (j.content || []).map(c => c.text || '').join('');
-  }
-  const r = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: 'Bearer ' + clave },
-    body: JSON.stringify({ model: modelo, messages: [
-      { role: 'system', content: sistema }, { role: 'user', content: usuario }] })
-  });
-  const j = await r.json();
-  if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
-  return j.choices[0].message.content;
-}
+// Acá vivía una segunda copia de llamarModelo con los parámetros `clave` y
+// `modelo` al revés que la de más abajo. Las dos se llamaban igual, así que la
+// última que declara el archivo se quedaba con el nombre y la clasificación
+// mandaba el nombre del modelo como clave de API: 401 en cada lote, cada lote
+// tragado por su try, y la pantalla igual que antes de apretar. Una sola
+// función, una sola firma.
 
 function extraerJSON(txt) {
   const a = txt.indexOf('['), b = txt.lastIndexOf(']');
@@ -2323,7 +2352,7 @@ async function clasificar(posts, prov, clave, modelo, alProgreso) {
   const lotes = [];
   for (let i = 0; i < pendientes.length; i += LOTE) lotes.push(pendientes.slice(i, i + LOTE));
 
-  let hechos = 0, fallidos = 0;
+  let hechos = 0, fallidos = 0, primerError = null;
   const nuevosPares = [];
 
   for (let i = 0; i < lotes.length; i += PARALELO) {
@@ -2331,7 +2360,7 @@ async function clasificar(posts, prov, clave, modelo, alProgreso) {
     await Promise.all(tanda.map(async lote => {
       const entrada = lote.map((u, j) => `${j + 1}. ${u.texto.replace(/\n+/g, ' ')}`).join('\n');
       try {
-        const txt = await llamarModelo(prov, clave, modelo, PROMPT_CLAS, entrada, 3000);
+        const txt = await llamarModelo(prov, modelo, clave, PROMPT_CLAS, entrada, 3000);
         const arr = extraerJSON(txt);
         lote.forEach((u, j) => {
           const c = arr[j];
@@ -2347,6 +2376,10 @@ async function clasificar(posts, prov, clave, modelo, alProgreso) {
         });
       } catch (e) {
         fallidos += lote.length;
+        // El primer error se guarda para mostrarlo: si fallan los cien lotes
+        // por la misma clave vencida, el usuario tiene que leerlo una vez,
+        // no encontrarlo en la consola.
+        if (!primerError) primerError = e;
         console.warn('[ANUBIS] lote fallido:', e.message);
       }
       hechos += lote.length;
@@ -2355,7 +2388,11 @@ async function clasificar(posts, prov, clave, modelo, alProgreso) {
   }
 
   await guardarCache(nuevosPares);
-  return { nuevos: nuevosPares.length, cacheados: unicos.length - pendientes.length, fallidos };
+  // Si no entró ni una y todas fallaron, esto no es un resultado parcial: es un
+  // error, y se propaga para que la pantalla lo diga en vez de quedarse igual.
+  if (!nuevosPares.length && fallidos && primerError) throw primerError;
+  return { nuevos: nuevosPares.length, cacheados: unicos.length - pendientes.length,
+           fallidos, primerError };
 }
 
 // ====================================================================
@@ -3153,6 +3190,47 @@ function nota(t) {
 // Se mantiene el nombre viejo porque lo usan tres llamadores.
 function formatoTexto(t) { return nota(t); }
 
+// La nota completa: el sello de quién contestó y cuánto tardó, y abajo el
+// cuerpo. El sello no es decoración — es lo que permite comparar dos modelos
+// sin tener que acordarse de cuál se apretó.
+function notaCompleta(texto, sello) {
+  return `<article class="nota">
+    <div class="firma"><b>${escapar(sello.quien)}</b><span class="crece">${escapar(sello.que || '')}</span>
+      ${sello.cuanto ? `<span>${escapar(sello.cuanto)}</span>` : ''}</div>
+    <div class="respuesta">${nota(texto)}</div>
+  </article>`;
+}
+
+// ====================================================================
+// Aviso de que está trabajando
+// ====================================================================
+// Entre que uno deja de hablar y aparece la respuesta pasan varios segundos en
+// los que no hay nada en pantalla. Sin una señal de vida, se toca el botón de
+// nuevo y se paga la consulta dos veces.
+function trabajando(destino, primerPaso) {
+  const arranque = Date.now();
+  destino.innerHTML = `<div class="trabajando">
+    <div class="barraIndet" role="progressbar" aria-label="Procesando"><div></div></div>
+    <p class="paso"><span class="crece" data-paso>${escapar(primerPaso)}</span>
+      <span class="reloj" data-reloj>0 s</span></p></div>`;
+  const elReloj = destino.querySelector('[data-reloj]');
+  const elPaso = destino.querySelector('[data-paso]');
+  const t = setInterval(() => {
+    if (!elReloj.isConnected) return clearInterval(t);
+    elReloj.textContent = Math.round((Date.now() - arranque) / 1000) + ' s';
+  }, 250);
+  return {
+    paso: txt => { if (elPaso.isConnected) elPaso.textContent = txt; },
+    segundos: () => (Date.now() - arranque) / 1000,
+    fin: () => { clearInterval(t); }
+  };
+}
+
+function enSegundos(s) {
+  return s < 60 ? fmt1(s).replace(',0', '') + ' s'
+                : Math.floor(s / 60) + ' min ' + Math.round(s % 60) + ' s';
+}
+
 // Una clave por proveedor, compartida entre la clasificación y las preguntas.
 // Las versiones anteriores guardaban una sola clave sin decir de quién era:
 // se migra asumiendo que era la del proveedor que estaba elegido.
@@ -3163,7 +3241,7 @@ function claveDe(prov) {
   return '';
 }
 
-async function llamarModelo(prov, modelo, clave, sistema, usuario) {
+async function llamarModelo(prov, modelo, clave, sistema, usuario, maxTokens) {
   if (prov === 'anthropic') {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -3173,7 +3251,7 @@ async function llamarModelo(prov, modelo, clave, sistema, usuario) {
         'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true'
       },
-      body: JSON.stringify({ model: modelo, max_tokens: 2200, system: sistema,
+      body: JSON.stringify({ model: modelo, max_tokens: maxTokens || 2200, system: sistema,
         messages: [{ role: 'user', content: usuario }] })
     });
     const j = await r.json();
@@ -3324,6 +3402,10 @@ function renderPreguntas() {
 }
 
 const NOMBRE_PROV = { anthropic: 'Claude Haiku', openai: 'GPT-5 mini' };
+const NOMBRE_MODELO = {
+  anthropic: { economico: 'Claude Haiku', avanzado: 'Claude Opus' },
+  openai:    { economico: 'GPT-5 mini',   avanzado: 'GPT-5' }
+};
 
 // Dos modelos, el mismo contexto y las mismas preguntas. Lo que interesa no es
 // cuál escribe mejor sino dónde no coinciden: ahí es donde la lectura depende
@@ -3339,23 +3421,29 @@ async function analisisAuto(provs) {
 
   const botones = ['#aClaude', '#aGpt', '#aAmbos'].map($);
   botones.forEach(b => b.disabled = true);
-  est.textContent = provs.length > 1 ? 'Consultando los dos modelos en paralelo…' : 'Consultando…';
-  out.innerHTML = '';
+  est.textContent = '';
+  const tr = trabajando(out, 'Preparando los datos…');
 
   const usuario = 'Datos:\n```json\n' + JSON.stringify(contextoParaModelo()) + '\n```\n\n' + instruccionAuto();
+  tr.paso(provs.length > 1 ? 'Consultando los dos modelos en paralelo…'
+                           : 'Consultando ' + NOMBRE_PROV[provs[0]] + '…');
+  // Cinco preguntas tardan, así que el paso dice qué está pasando y el reloj
+  // corre: es la diferencia entre esperar y no saber si se colgó.
+  const avisos = setTimeout(() => tr.paso('Sigue escribiendo. Son cinco preguntas, suele tardar medio minuto…'), 12000);
 
   const resultados = await Promise.all(provs.map(async p => {
     try {
       return { prov: p, texto: await llamarModelo(p, MODELOS[p].economico, claves[p], SISTEMA, usuario) };
     } catch (e) { return { prov: p, error: e }; }
   }));
+  clearTimeout(avisos);
+  const seg = tr.segundos();
+  tr.fin();
 
-  out.innerHTML = `<div class="${provs.length > 1 ? 'par' : ''}">` + resultados.map(r => `
-    <div>
-      <p class="sub" style="margin:0 0 6px"><strong>${escapar(NOMBRE_PROV[r.prov])}</strong>
-        · ${escapar(MODELOS[r.prov].economico)}</p>
-      ${r.error ? errorHTML(r.error) : `<div class="respuesta">${formatoTexto(r.texto)}</div>`}
-    </div>`).join('') + '</div>';
+  out.innerHTML = `<div class="${provs.length > 1 ? 'par' : ''}">` + resultados.map(r =>
+    r.error ? `<div><p class="sub" style="margin:0 0 6px"><strong>${escapar(NOMBRE_PROV[r.prov])}</strong></p>${errorHTML(r.error)}</div>`
+            : `<div>${notaCompleta(r.texto, { quien: NOMBRE_PROV[r.prov],
+                 que: 'Análisis automático', cuanto: enSegundos(seg) })}</div>`).join('') + '</div>';
 
   const ok = resultados.filter(r => !r.error);
   if (provs.length > 1 && ok.length === 2) {
@@ -3373,7 +3461,8 @@ async function contrastar(ok, claves) {
   const est = $('#aEstado2'), out = $('#aContrasteSalida');
   const b = $('#aContraste');
   b.disabled = true;
-  est.textContent = 'Comparando…';
+  est.textContent = '';
+  const tr = trabajando(out, 'Comparando los dos análisis…');
   const sistema = 'Comparás dos análisis del mismo conjunto de datos, hechos por dos modelos distintos. ' +
     'Respondés en español rioplatense, con registro profesional. No elegís un ganador: señalás en qué ' +
     'coinciden, en qué se contradicen y qué afirmó uno que el otro no menciona. Si una afirmación no se ' +
@@ -3382,12 +3471,15 @@ async function contrastar(ok, claves) {
     '\n\nDecime: 1) en qué coinciden, 2) en qué se contradicen, 3) qué dijo uno solo y merece revisarse.';
   try {
     const texto = await llamarModelo('anthropic', MODELOS.anthropic.economico, claves.anthropic, sistema, usuario);
-    out.innerHTML = `<div class="respuesta" style="margin-top:12px">${formatoTexto(texto)}</div>`;
+    const seg = tr.segundos(); tr.fin();
+    out.innerHTML = notaCompleta(texto, { quien: 'Contraste', que: 'Dónde coinciden y dónde no',
+      cuanto: enSegundos(seg) });
     est.textContent = '';
   } catch (e) {
+    tr.fin();
     out.innerHTML = errorHTML(e);
     est.textContent = '';
-  } finally { b.disabled = false; }
+  } finally { tr.fin(); b.disabled = false; }
 }
 
 // ====================================================================
@@ -3491,10 +3583,13 @@ function arrancarVoz(SR) {
     limpiarRelojes();
     DIC.activo = false; DIC.rec = null;
     if (huboAlgo && $('#pPregunta').value.trim()) {
-      dictEstado('Preguntando…');
+      // La barra arranca acá y no dentro de preguntar(): el momento en que uno
+      // deja de hablar es justo cuando hace falta ver que algo pasó.
+      trabajando($('#pRespuesta'), 'Escuché la pregunta. Preparando la consulta…');
+      dictEstado('');
       preguntar();
     } else {
-      dictEstado('No se escuchó nada.');
+      dictEstado('No se escuchó nada. Tocá el micrófono y probá de nuevo.');
     }
   };
 
@@ -3530,17 +3625,23 @@ async function arrancarGrabacion(motivo) {
   g.onstop = async () => {
     limpiarRelojes();
     if (DIC.stream) { DIC.stream.getTracks().forEach(t => t.stop()); DIC.stream = null; }
-    if (!DIC.huboVoz) { DIC.activo = false; dictEstado('No se escuchó nada.'); return; }
+    if (!DIC.huboVoz) { DIC.activo = false; dictEstado('No se escuchó nada. Tocá el micrófono y probá de nuevo.'); return; }
     const audio = new Blob(DIC.trozos, { type: g.mimeType || 'audio/webm' });
-    dictEstado('Transcribiendo…', true);
+    // Este camino tiene una espera más: hay que subir el audio y esperar la
+    // transcripción antes de siquiera preguntar. Se ve paso por paso.
+    const tr = trabajando($('#pRespuesta'), 'Transcribiendo lo que dijiste…');
+    dictEstado('', true);
     try {
       const texto = await transcribir(audio, clave);
       $('#pPregunta').value = ((DIC.base ? DIC.base + ' ' : '') + texto).trim();
       DIC.activo = false;
-      if (texto.trim()) { dictEstado('Preguntando…'); preguntar(); }
-      else dictEstado('No se entendió nada.');
+      tr.fin();
+      if (texto.trim()) { dictEstado(''); preguntar(); }
+      else { $('#pRespuesta').innerHTML = ''; dictEstado('No se entendió nada. Probá de nuevo.'); }
     } catch (e) {
       DIC.activo = false;
+      tr.fin();
+      $('#pRespuesta').innerHTML = '';
       dictEstado('No se pudo transcribir: ' + e.message);
     }
   };
@@ -3616,20 +3717,31 @@ async function preguntar() {
   if (modo === 'economico') guardarLocal('anubis_clave_' + prov, clave);
 
   const modelo = MODELOS[prov][modo];
-  est.textContent = 'Consultando ' + modelo + '…';
-  out.innerHTML = '';
+  est.textContent = '';
   $('#pEnviar').disabled = true;
+  // La barra aparece antes de armar el contexto, no después: armarlo también
+  // lleva su tiempo cuando hay muchos días cargados.
+  const tr = trabajando(out, 'Preparando los datos…');
 
   const usuario = 'Datos:\n```json\n' + JSON.stringify(contextoParaModelo()) + '\n```\n\nPregunta: ' + pregunta;
+  tr.paso('Consultando ' + NOMBRE_MODELO[prov][modo] + '…');
+  // Una consulta larga no es un error, pero sin decirlo parece uno.
+  const avisoLento = setTimeout(() => tr.paso(NOMBRE_MODELO[prov][modo] + ' sigue escribiendo…'), 15000);
 
   try {
     const texto = await llamarModelo(prov, modelo, clave, SISTEMA, usuario);
-    out.innerHTML = `<div class="respuesta">${formatoTexto(texto)}</div>`;
-    est.textContent = 'Respondió ' + modelo + '.';
+    const seg = tr.segundos();
+    tr.fin();
+    out.innerHTML = notaCompleta(texto, {
+      quien: NOMBRE_MODELO[prov][modo], que: pregunta, cuanto: enSegundos(seg) });
+    est.textContent = '';
   } catch (e) {
+    tr.fin();
     est.textContent = '';
     out.innerHTML = errorHTML(e);
   } finally {
+    clearTimeout(avisoLento);
+    tr.fin();
     $('#pEnviar').disabled = false;
   }
 }
@@ -3888,7 +4000,9 @@ function panelClasificar(total, hechos) {
     <p class="sub" style="margin:0">
       ${fmt(hechos)} de ${fmt(total)} ya clasificadas${hechos ? ' · lo ya procesado no se vuelve a pagar' : ''}.
       Se usa el modelo económico y se cachea por hash del texto.
+      ${pend > 150 ? `Son ${fmt(pend)}: esperá unos minutos.` : ''}
       <span id="cEstado" style="color:var(--acento);font-weight:600"></span></p>
+    <div id="cAviso"></div>
   </div>`;
 }
 
@@ -3901,18 +4015,38 @@ function engancharClasificar() {
   });
   b.addEventListener('click', async () => {
     const prov = $('#cProv').value, clave = $('#cClave').value.trim();
-    if (!clave) { $('#cEstado').textContent = ' Falta la clave.'; return; }
+    const aviso = $('#cAviso');
+    if (!clave) {
+      aviso.innerHTML = `<div class="aviso">Falta la clave de ${prov === 'anthropic' ? 'Anthropic' : 'OpenAI'}.
+        Pegala en el campo de al lado.</div>`;
+      return;
+    }
     guardarLocal('anubis_clave_' + prov, clave);
     b.disabled = true;
+    $('#cEstado').textContent = '';
     const modelo = MODELOS[prov].economico;
+    // Clasificar 256 publicaciones son varios minutos. Sin barra no hay forma
+    // de distinguir "está trabajando" de "no pasó nada", que fue exactamente
+    // lo que pasaba.
+    const tr = trabajando(aviso, 'Leyendo lo que ya estaba clasificado…');
     try {
       const r = await clasificar(seleccion(), prov, clave, modelo,
-        (i, n) => { $('#cEstado').textContent = ` procesando ${i}/${n}…`; });
+        (i, n) => tr.paso(`Clasificando ${fmt(i)} de ${fmt(n)} publicaciones…`));
+      const seg = tr.segundos(); tr.fin();
       hechosCache = null;
-      console.log('[ANUBIS] clasificación', r);
       renderAgenda();
+      const nuevoAviso = $('#cAviso');
+      if (nuevoAviso && r.fallidos) {
+        nuevoAviso.innerHTML = `<div class="aviso"><strong>${fmt(r.fallidos)} publicaciones no se pudieron
+          clasificar.</strong> ${escapar(r.primerError ? r.primerError.message : '')}
+          Las demás sí quedaron; podés volver a apretar y sólo se reintentan las que faltan.</div>`;
+      } else if (nuevoAviso) {
+        nuevoAviso.innerHTML = `<p class="sub" style="margin:10px 0 0">Listo en ${escapar(enSegundos(seg))}.
+          ${fmt(r.nuevos)} clasificadas ahora${r.cacheados ? `, ${fmt(r.cacheados)} ya estaban` : ''}.</p>`;
+      }
     } catch (e) {
-      $('#cEstado').textContent = ' ' + e.message;
+      tr.fin();
+      aviso.innerHTML = errorHTML(e);
       b.disabled = false;
     }
   });
