@@ -6,7 +6,7 @@
 <title>Incertis Anubis · Análisis</title>
 <style>
 /* ===================================================================
-   INCERTIS ANUBIS · Panel de análisis · v1.3
+   INCERTIS ANUBIS · Panel de análisis
    Archivo único. Sin dependencias externas. Los gráficos son SVG propio.
    =================================================================== */
 
@@ -230,7 +230,7 @@ button.chico { font-size: 12px; padding: 5px 11px; }
 
 <header class="barra">
   <span class="logo">INCERTIS ANUBIS</span>
-  <span class="sub">Panel de análisis · v2.6</span>
+  <span class="sub">Panel de análisis · v2.9</span>
   <span class="der">
     <button class="fantasma" id="btnTema" title="Cambiar tema">Tema</button>
     <button class="fantasma" id="btnInforme" title="Descargar el informe en .pptx, que Keynote abre">Descargar informe</button>
@@ -256,6 +256,8 @@ button.chico { font-size: 12px; padding: 5px 11px; }
       <button id="btnArchivos">o archivos sueltos</button>
     </p>
     <div id="desdeGitHub" class="oculto" style="margin:22px auto 10px;max-width:560px;text-align:left"></div>
+    <p style="margin-top:20px">
+      <button id="btnAcceso" style="font-size:12px">Preparar el acceso del equipo</button></p>
   </section>
 
   <div id="app" class="oculto">
@@ -1157,7 +1159,7 @@ ${slides.map((_, i) => `<Relationship Id="rId${i + 2}" Type="${NS_R}/slide" Targ
 </script>
 <script>
 'use strict';
-const VERSION = '2.6';
+const VERSION = '2.9';
 console.log('[ANUBIS] panel de análisis v' + VERSION);
 
 // ====================================================================
@@ -1171,6 +1173,24 @@ const D = {
 
 const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
+
+// Suma publicaciones al estado descartando las que ya están. Hace falta desde
+// que recolecta más de una persona: si dos capturan el mismo día y el mismo
+// mercado, los dos archivos traen las mismas publicaciones, y sin esto cada
+// una contaría doble — todas las métricas del día quedarían al doble sin que
+// nada lo delate. Se compara por post_id, que es el de X y no cambia.
+function agregarPosts(nuevos) {
+  const vistos = new Set(D.posts.map(p => p.post_id));
+  let sumados = 0, repetidos = 0;
+  for (const p of nuevos) {
+    if (p.post_id && vistos.has(p.post_id)) { repetidos++; continue; }
+    if (p.post_id) vistos.add(p.post_id);
+    D.posts.push(p);
+    sumados++;
+  }
+  if (repetidos) console.log(`[ANUBIS] ${repetidos} publicación(es) repetidas, descartadas`);
+  return { sumados, repetidos };
+}
 
 const SERIES = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)'];
 
@@ -1354,8 +1374,7 @@ async function procesarPaquete(g) {
       periodo: (resumen && resumen.periodo) || (manif && manif.periodo) || null,
       resumen
     });
-    D.posts.push(...posts);
-    return posts.length;
+    return agregarPosts(posts).sumados;
   }
 }
 
@@ -1444,7 +1463,7 @@ function mostrarGitHub() {
       </div></div>
       <div class="par" style="gap:12px">
         <label class="explica" style="display:block">Dueño
-          <input type="text" id="ghD" value="${escapar(c.duenio)}" placeholder="juliangallo" style="width:100%;margin-top:6px"></label>
+          <input type="text" id="ghD" value="${escapar(c.duenio)}" placeholder="tu-usuario-de-github" style="width:100%;margin-top:6px"></label>
         <label class="explica" style="display:block">Repositorio
           <input type="text" id="ghR" value="${escapar(c.repo)}" placeholder="anubis-datos" style="width:100%;margin-top:6px"></label>
       </div>
@@ -1514,7 +1533,7 @@ async function bajarDeGitHub(cfg, capturas) {
   if (!elegidas.length) { msg.textContent = 'No marcaste ninguna.'; return; }
   const btn = $('#ghCargar');
   btn.disabled = true;
-  let n = 0, p = 0;
+  let n = 0, p = 0, repetidas = 0;
   try {
     for (const c of elegidas) {
       msg.textContent = `Bajando ${c.archivo}… (${n + 1} de ${elegidas.length})`;
@@ -1531,12 +1550,13 @@ async function bajarDeGitHub(cfg, capturas) {
         if (!q.mercado) q.mercado = c.mercado || 'Sin mercado';
       }
       D.ejecuciones.push({ id: c.archivo, periodo: c.periodo || null,
-        resumen: { periodo: c.periodo || null } });
-      D.posts.push(...posts);
-      n++; p += posts.length;
+        resumen: { periodo: c.periodo || null, cortes: c.cortes || null } });
+      const r = agregarPosts(posts);
+      n++; p += r.sumados; repetidas += r.repetidos;
     }
     if (!p) { msg.textContent = 'Esas capturas ya estaban cargadas.'; return; }
-    msg.textContent = `${n} captura(s), ${fmt(p)} publicaciones.`;
+    msg.textContent = `${n} captura(s), ${fmt(p)} publicaciones.` +
+      (repetidas ? ` ${fmt(repetidas)} repetidas, descartadas: alguien más capturó lo mismo.` : '');
     console.log(`[ANUBIS] GitHub: ${n} captura(s), ${p} publicaciones`);
     if (typeof DISPONIBLES !== 'undefined') DISPONIBLES.listo = false;
     prepararFiltros();
@@ -1593,8 +1613,7 @@ async function prepararDelNavegador() {
         if (!q.rol) q.rol = deducirRol(q.cuenta_monitoreada, mercados);
       }
       D.ejecuciones.push({ id: paq.id, periodo: (paq.resumen && paq.resumen.periodo) || null, resumen: paq.resumen });
-      D.posts.push(...paq.posts);
-      n++; p += paq.posts.length;
+      n++; p += agregarPosts(paq.posts).sumados;
     }
     if (!n) { alert('Esas capturas ya estaban cargadas.'); return; }
     console.log(`[ANUBIS] ${n} captura(s) del navegador, ${p} publicaciones`);
@@ -1763,6 +1782,55 @@ function cuentasDe(posts) {
     i++;
   }
   return arr;
+}
+
+// Una cuenta cuya captura cortó por un tope no cubrió el día: tiene menos
+// publicaciones de las que publicó, y cuánto menos no se sabe. Compararla con
+// una completa da una conclusión falsa, así que el panel lo dice antes que
+// cualquier número.
+const CORTES_INCOMPLETOS = {
+  tope_de_scrolls: 'se cortó por el tope de scrolls',
+  tope_de_publicaciones: 'se cortó por el tope de publicaciones',
+  tope_de_tiempo: 'se cortó por el tope de minutos',
+  fallo_de_scroll: 'falló el desplazamiento',
+  fallo_de_lectura: 'falló la lectura de la cronología',
+  detenido_por_operador: 'se detuvo a mano',
+  cuenta_salteada: 'se salteó'
+};
+
+function coberturaIncompleta(posts) {
+  const enJuego = new Set(posts.map(p => p.cuenta_monitoreada));
+  const ejec = $('#fPeriodo').value;
+  const avisos = [];
+  for (const e of D.ejecuciones) {
+    if (ejec !== '__todas' && e.id !== ejec) continue;
+    const r = e.resumen || {};
+    // Dos formas según de dónde vino la captura: el resumen completo de un
+    // paquete, o el mapa compacto que viaja en el índice de GitHub.
+    const pares = r.cortes ? Object.entries(r.cortes)
+      : (r.cuentas || []).map(c => [c.handle, c.motivo_corte]);
+    for (const [handle, motivo] of pares) {
+      if (!motivo || !CORTES_INCOMPLETOS[motivo] || !enJuego.has(handle)) continue;
+      avisos.push({ handle, motivo, dia: (e.periodo && e.periodo.desde) || e.id });
+    }
+  }
+  return avisos;
+}
+
+function avisoCobertura(posts) {
+  const avisos = coberturaIncompleta(posts);
+  if (!avisos.length) return '';
+  const porCuenta = {};
+  for (const a of avisos) (porCuenta[a.handle] = porCuenta[a.handle] || []).push(a);
+  const lista = Object.entries(porCuenta).map(([h, a]) =>
+    `<strong>@${escapar(h)}</strong> (${escapar(CORTES_INCOMPLETOS[a[0].motivo])}` +
+    (a.length > 1 ? `, en ${a.length} días` : '') + ')').join(', ');
+  return `<div class="aviso" style="margin-bottom:16px">
+    <strong>Cobertura incompleta.</strong> ${lista}.
+    Esas cuentas publicaron más de lo que quedó capturado, y no se sabe cuánto más.
+    Cualquier comparación de volumen con las demás las subestima; las medidas por
+    publicación sufren menos, pero tampoco son exactas. Para arreglarlo, subí el tope
+    en <em>Parámetros de recorrido</em> y volvé a correr ese día: el archivo se reemplaza.</div>`;
 }
 
 function agregados(c) {
@@ -2232,7 +2300,7 @@ function renderComparado() {
   const ag = cuentas.map(agregados);
   const propia = ag.find(a => a.rol === 'propia') || ag[0];
 
-  let h = '';
+  let h = avisoCobertura(posts);
 
   h += `<h2 class="seccion">Lo que decide la redacción</h2>
     <p class="explica">Cuántas veces publicó cada cuenta. Es actividad: depende sólo de la decisión del medio,
@@ -3469,10 +3537,259 @@ document.addEventListener('mousemove', ev => {
 });
 document.addEventListener('mouseout', ev => { if (ev.target.closest('[data-tip]')) ocultarTip(); });
 
-// Dentro de la extensión, la carpeta de trabajo ya está elegida: se ofrece
-// directamente la lista de capturas en vez del selector de archivos.
-prepararDelNavegador().catch(e => console.warn('[ANUBIS] sin capturas en el navegador', e));
-prepararCarpeta().catch(e => console.warn('[ANUBIS] sin carpeta de trabajo', e));
+$('#btnAcceso').addEventListener('click', () => mostrarGeneradorAcceso());
+
+// El candado sólo aparece en la copia publicada, que es la que tiene
+// acceso.json al lado. Si está, nada más se prepara hasta que se abra.
+//
+// Se espera a que termine de cargar la página: acceso.js se ejecuta después de
+// este archivo, y llamarlo acá directamente sería llamar a algo que todavía no
+// existe.
+async function arranque() {
+  try {
+    if (typeof prepararAcceso === 'function' && await prepararAcceso()) return;
+  } catch (e) { console.warn('[ANUBIS] sin candado', e); }
+
+  // Dentro de la extensión, la carpeta de trabajo ya está elegida: se ofrece
+  // directamente la lista de capturas en vez del selector de archivos.
+  prepararDelNavegador().catch(e => console.warn('[ANUBIS] sin capturas en el navegador', e));
+  prepararCarpeta().catch(e => console.warn('[ANUBIS] sin carpeta de trabajo', e));
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arranque);
+else arranque();
+
+</script>
+<script>
+'use strict';
+// INCERTIS ANUBIS · acceso v1.0
+//
+// Candado para la copia publicada del panel.
+//
+// Una contraseña escrita en el código de una página pública no protege nada:
+// el repositorio es público y el código se lee. Acá la contraseña no abre la
+// página, abre un token de lectura cifrado. El archivo acceso.json contiene el
+// token cifrado con AES-GCM y una clave derivada de la contraseña con PBKDF2;
+// sin la contraseña ese archivo es ruido.
+//
+// Lo que esto protege y lo que no: protege los datos, que viven en un
+// repositorio privado y sólo se abren con el token. No protege contra alguien
+// que se baje acceso.json y pruebe contraseñas por su cuenta — por eso la
+// contraseña tiene que ser larga, y si se filtra se revoca el token y se
+// genera de nuevo, que lleva dos minutos.
+
+const ACCESO = { archivo: 'acceso.json', cfg: null };
+const ITERACIONES = 600000;
+
+function bytesABase64(b) {
+  let s = '';
+  const u = new Uint8Array(b);
+  for (let i = 0; i < u.length; i++) s += String.fromCharCode(u[i]);
+  return btoa(s);
+}
+function base64ABytes(t) {
+  const bin = atob(String(t));
+  const u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return u;
+}
+
+async function derivarClave(contrasena, sal, iteraciones) {
+  const base = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(contrasena), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: sal, iterations: iteraciones || ITERACIONES, hash: 'SHA-256' },
+    base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+
+async function cifrarToken(token, contrasena) {
+  const sal = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const clave = await derivarClave(contrasena, sal, ITERACIONES);
+  const cifrado = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, clave,
+    new TextEncoder().encode(token));
+  return {
+    sal: bytesABase64(sal), iv: bytesABase64(iv),
+    cifrado: bytesABase64(cifrado), iteraciones: ITERACIONES
+  };
+}
+
+async function descifrarToken(cfg, contrasena) {
+  const clave = await derivarClave(contrasena, base64ABytes(cfg.sal), cfg.iteraciones);
+  // Una contraseña equivocada no descifra mal: AES-GCM verifica la etiqueta y
+  // tira excepción. No hay forma de entrar con una clave parecida.
+  const plano = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: base64ABytes(cfg.iv) }, clave, base64ABytes(cfg.cifrado));
+  return new TextDecoder().decode(plano);
+}
+
+// El candado sólo existe donde hay acceso.json, es decir en la copia publicada.
+// Dentro de la extensión el archivo no está y el panel abre directo.
+async function prepararAcceso() {
+  let cfg = null;
+  try {
+    const r = await fetch(ACCESO.archivo, { cache: 'no-store' });
+    if (r.ok) cfg = await r.json();
+  } catch (e) { /* sin candado */ }
+  if (!cfg || !cfg.cifrado) return false;
+
+  ACCESO.cfg = cfg;
+  mostrarCandado();
+  return true;
+}
+
+function mostrarCandado() {
+  const v = document.getElementById('vacio');
+  const app = document.getElementById('app');
+  if (app) app.classList.add('oculto');
+  if (!v) return;
+  v.classList.remove('oculto');
+  v.innerHTML = `
+    <h2>Incertis Anubis</h2>
+    <p style="max-width:440px;margin:0 auto 22px">Panel de monitoreo de X.
+      Escribí la contraseña del equipo para abrir los datos.</p>
+    <div style="max-width:340px;margin:0 auto;text-align:left">
+      <input type="password" id="accClave" placeholder="contraseña" autocomplete="current-password"
+             style="width:100%;margin-bottom:10px">
+      <button class="primario" id="accEntrar" style="background:var(--marca);color:#fff;width:100%">Entrar</button>
+      <p class="explica" id="accMsg" style="margin:12px 0 0;text-align:center"></p>
+      <label class="explica" style="display:flex;align-items:center;gap:7px;justify-content:center;margin-top:10px">
+        <input type="checkbox" id="accRecordar" style="width:auto;margin:0" checked> recordarme en este navegador</label>
+    </div>`;
+
+  const entrar = () => abrirCandado($('#accClave').value, $('#accRecordar').checked);
+  $('#accEntrar').addEventListener('click', entrar);
+  $('#accClave').addEventListener('keydown', e => { if (e.key === 'Enter') entrar(); });
+
+  // Si ya entró antes en este navegador, se abre solo.
+  const guardada = leerLocal('anubis_acc');
+  if (guardada) abrirCandado(guardada, true, true);
+  else $('#accClave').focus();
+}
+
+async function abrirCandado(contrasena, recordar, silencioso) {
+  const msg = $('#accMsg');
+  if (!contrasena) { if (msg) msg.textContent = 'Escribí la contraseña.'; return; }
+  if (msg) msg.textContent = 'Abriendo…';
+  let token;
+  try {
+    token = await descifrarToken(ACCESO.cfg, contrasena);
+  } catch (e) {
+    if (recordar) guardarLocal('anubis_acc', '');
+    if (msg) msg.textContent = silencioso ? '' : 'Contraseña incorrecta.';
+    if (silencioso && $('#accClave')) $('#accClave').focus();
+    return;
+  }
+  if (recordar) guardarLocal('anubis_acc', contrasena);
+
+  guardarLocal('anubis_gh_duenio', ACCESO.cfg.duenio || '');
+  guardarLocal('anubis_gh_repo', ACCESO.cfg.repo || '');
+  guardarLocal('anubis_gh_token', token);
+
+  // Entrar y listar en un solo paso: quien abre el panel quiere ver los días,
+  // no completar otro formulario.
+  restaurarVacio();
+  mostrarGitHub();
+  listarDeGitHub();
+}
+
+// El estado vacío original, que el candado reemplazó.
+function restaurarVacio() {
+  const v = document.getElementById('vacio');
+  if (!v) return;
+  v.innerHTML = `
+    <h2>Incertis Anubis</h2>
+    <p>Elegí qué días querés analizar.</p>
+    <div id="desdeNavegador" class="oculto" style="margin:26px 0 10px"></div>
+    <div id="desdeCarpeta" class="oculto" style="margin:22px 0 10px"></div>
+    <p style="margin-top:24px;font-size:13px;color:var(--tinta-3)">
+      <button id="btnGitHub">Cargar desde GitHub</button>
+      <button id="btnCargar2">o desde una carpeta</button>
+      <button id="btnArchivos">o archivos sueltos</button>
+    </p>
+    <div id="desdeGitHub" class="oculto" style="margin:22px auto 10px;max-width:560px;text-align:left"></div>
+    <p style="margin-top:26px">
+      <button id="accSalir" style="font-size:12px">Salir</button></p>`;
+  $('#btnGitHub').addEventListener('click', mostrarGitHub);
+  $('#btnCargar2').addEventListener('click', () => $('#selCarpeta').click());
+  $('#btnArchivos').addEventListener('click', () => $('#selArchivos').click());
+  $('#accSalir').addEventListener('click', () => {
+    guardarLocal('anubis_acc', '');
+    guardarLocal('anubis_gh_token', '');
+    location.reload();
+  });
+}
+
+// ====================================================================
+// Generador de acceso.json
+// ====================================================================
+// Corre en el navegador de quien lo prepara: el token en claro no sale nunca
+// de esa máquina, y lo que se sube al repositorio ya está cifrado.
+
+function mostrarGeneradorAcceso() {
+  const v = document.getElementById('desdeGitHub') || document.getElementById('vacio');
+  const caja = document.createElement('div');
+  caja.className = 'tarjeta';
+  caja.style.cssText = 'text-align:left;max-width:560px;margin:18px auto';
+  caja.innerHTML = `
+    <div class="cabTarjeta"><div class="crece">
+      <h3>Preparar el acceso del equipo</h3>
+      <p class="sub">Genera el archivo acceso.json para subir al repositorio del panel</p>
+    </div></div>
+    <p class="explica" style="margin-top:0">El token queda cifrado con la contraseña. El archivo
+    se puede publicar sin riesgo: sin la contraseña no se puede leer. Usá un token
+    <strong>de sólo lectura</strong> sobre el repositorio de datos, nunca el de escritura.</p>
+    <div class="par" style="gap:12px">
+      <label class="explica" style="display:block">Dueño
+        <input type="text" id="genD" value="${escapar(leerLocal('anubis_gh_duenio') || '')}" style="width:100%;margin-top:6px"></label>
+      <label class="explica" style="display:block">Repositorio de datos
+        <input type="text" id="genR" value="${escapar(leerLocal('anubis_gh_repo') || '')}" style="width:100%;margin-top:6px"></label>
+    </div>
+    <label class="explica" style="display:block;margin-top:10px">Token de sólo lectura
+      <input type="password" id="genT" placeholder="github_pat_…" style="width:100%;margin-top:6px"></label>
+    <label class="explica" style="display:block;margin-top:10px">Contraseña para el equipo
+      <input type="text" id="genC" placeholder="mínimo 12 caracteres" style="width:100%;margin-top:6px"></label>
+    <p class="explica" id="genFuerza" style="margin:8px 0 0"></p>
+    <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap">
+      <button class="primario" id="genHacer" style="background:var(--marca);color:#fff">Generar acceso.json</button>
+      <span id="genMsg" style="font-size:12px;color:var(--tinta-3)"></span>
+    </div>`;
+  v.parentNode.insertBefore(caja, v.nextSibling);
+  v.classList.remove('oculto');
+
+  $('#genC').addEventListener('input', e => {
+    const n = e.target.value.length;
+    $('#genFuerza').textContent = n === 0 ? ''
+      : n < 12 ? `${n} caracteres: corta. Alguien que se baje el archivo puede probar contraseñas sin límite, así que la largura es la única defensa.`
+      : `${n} caracteres: bien.`;
+  });
+  $('#genHacer').addEventListener('click', generarAcceso);
+}
+
+async function generarAcceso() {
+  const msg = $('#genMsg');
+  const duenio = $('#genD').value.trim(), repo = $('#genR').value.trim();
+  const token = $('#genT').value.trim(), clave = $('#genC').value;
+  if (!duenio || !repo || !token || !clave) { msg.textContent = 'Faltan datos.'; return; }
+  msg.textContent = 'Cifrando…';
+  try {
+    const c = await cifrarToken(token, clave);
+    const json = JSON.stringify({ duenio, repo, ...c, generado: new Date().toISOString() }, null, 2);
+    // Prueba de ida y vuelta antes de entregarlo: si el archivo no se puede
+    // abrir con la contraseña que acabás de escribir, mejor saberlo acá.
+    const vuelta = await descifrarToken(JSON.parse(json), clave);
+    if (vuelta !== token) throw new Error('la verificación falló');
+
+    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = 'acceso.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    msg.textContent = 'Listo: subí acceso.json al repositorio del panel, junto a index.html.';
+  } catch (e) {
+    msg.textContent = 'Falló: ' + e.message;
+  }
+}
 
 </script>
 <script>
