@@ -201,8 +201,46 @@ table.datos td { font-variant-numeric: tabular-nums; }
 /* ---------- preguntas ---------- */
 textarea { width: 100%; font: inherit; padding: 10px 12px; border-radius: 6px;
   border: 1px solid var(--borde); background: var(--sup); color: var(--tinta); resize: vertical; }
-.respuesta { white-space: pre-wrap; background: var(--plano); border: 1px solid var(--borde);
-  border-radius: 8px; padding: 14px 16px; margin-top: 14px; }
+/* La respuesta se lee como una nota: columna angosta, porque una línea de
+   ciento veinte caracteres obliga al ojo a buscar dónde empieza la siguiente.
+   Tablas y gráficos sí pueden ocupar todo el ancho: ahí el dato es la forma. */
+.respuesta { background: var(--plano); border: 1px solid var(--borde);
+  border-radius: 8px; padding: 22px 26px; margin-top: 14px; }
+.respuesta > * { max-width: 62ch; }
+.respuesta > .envTabla, .respuesta > .figIA, .respuesta > pre { max-width: 100%; }
+.respuesta p { margin: 0 0 14px; line-height: 1.62; font-size: 15px; }
+.respuesta p:last-child { margin-bottom: 0; }
+.respuesta h3 { font-size: 15px; margin: 22px 0 8px; letter-spacing: -.01em; }
+.respuesta h3:first-child { margin-top: 0; }
+.respuesta ul, .respuesta ol { margin: 0 0 14px; padding-left: 22px; line-height: 1.6; font-size: 15px; }
+.respuesta li { margin-bottom: 5px; }
+.respuesta code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
+  background: var(--sup); border: 1px solid var(--borde); border-radius: 4px; padding: 1px 5px; }
+.respuesta pre { background: var(--sup); border: 1px solid var(--borde); border-radius: 6px;
+  padding: 12px 14px; overflow-x: auto; font-size: 13px; }
+.respuesta .envTabla, .respuesta .figIA { margin: 18px 0; }
+.figIA { margin: 0; }
+.figIA figcaption { font-size: 13px; color: var(--tinta-2); margin-bottom: 10px; }
+
+/* Caja de pregunta: micrófono, campo y enviar en una sola línea */
+.cajaPregunta { display: flex; align-items: flex-end; gap: 10px; }
+.cajaPregunta textarea { flex: 1; min-height: 46px; }
+.microfono { display: inline-flex; align-items: center; justify-content: center;
+  width: 46px; height: 46px; flex: 0 0 46px; padding: 0; border-radius: 50%;
+  border: 1px solid var(--borde); background: var(--sup); color: var(--tinta-2); cursor: pointer; }
+.microfono:hover { color: var(--marca); border-color: var(--marca); }
+.microfono.escuchando { background: var(--marca); border-color: var(--marca); color: #fff;
+  animation: pulso 1.4s ease-in-out infinite; }
+@keyframes pulso {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(27, 74, 145, .45); }
+  50%      { box-shadow: 0 0 0 7px rgba(27, 74, 145, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .microfono.escuchando { animation: none; } }
+.enviarPregunta { height: 46px; }
+.pieCaja { display: flex; align-items: center; gap: 12px; margin-top: 8px;
+  font-size: 12px; color: var(--tinta-3); }
+.pieCaja > span { flex: 1; }
+details.claves { margin-bottom: 16px; }
 .aviso { background: #fdf6e7; border: 1px solid #ecd9a9; color: #6d4d0c;
   border-radius: 7px; padding: 11px 13px; font-size: 13px; }
 :root[data-theme="dark"] .aviso, :root:not([data-theme="light"]) .aviso { }
@@ -244,7 +282,7 @@ button.cliente:disabled { opacity: .5; cursor: default; }
 
 <header class="barra">
   <span class="logo">INCERTIS ANUBIS</span>
-  <span class="sub">Panel de análisis · v3.5</span>
+  <span class="sub">Panel de análisis · v3.6</span>
   <span class="der">
     <button class="fantasma" id="btnTema" title="Cambiar tema">Tema</button>
     <button class="fantasma" id="btnInforme" title="Descargar el informe en .pptx, que Keynote abre">Descargar informe</button>
@@ -2958,7 +2996,18 @@ const SISTEMA = 'Sos un analista de medios. Respondés en español rioplatense, 
   'y la respuesta de la audiencia (vistas, me gusta, guardados, respuestas, compartidos, que no decide él). ' +
   'Nunca presentás un total como medida de éxito si el volumen de publicación difiere entre cuentas. ' +
   'No confundas el agregado del mercado con una cuenta sola: son lecturas distintas y lo aclarás cuando usás una. ' +
-  'Señalás las limitaciones de los datos cuando afectan la conclusión.';
+  'Señalás las limitaciones de los datos cuando afectan la conclusión.\n\n' +
+  'FORMATO DE LA RESPUESTA. Se muestra maquetada como una nota, así que escribís como para publicar: ' +
+  'párrafos cortos, subtítulos con ## cuando la respuesta tiene partes, y sin saludos ni cierres de cortesía. ' +
+  'Empezás por la respuesta, no por el resumen de la pregunta.\n' +
+  'Cuando compares tres o más cosas en varias dimensiones, usá una tabla de markdown en vez de enumerarlo en prosa.\n' +
+  'Cuando una comparación se entienda mejor vista que leída, pedí un gráfico de barras con un bloque así:\n' +
+  '```grafico\n{"titulo":"Vistas medianas por cuenta","sub":"14 de septiembre","unidad":"vistas",' +
+  '"datos":[{"et":"@clarincom","v":4405},{"et":"@LANACION","v":12375}]}\n```\n' +
+  'Reglas del gráfico: sólo barras, sólo números que estén en los datos que recibiste —nunca estimados ni ' +
+  'inventados—, entre 2 y 12 barras, una sola magnitud por gráfico (no mezcles vistas con porcentajes), ' +
+  'y el texto alrededor tiene que poder leerse sin el gráfico. Como máximo dos gráficos por respuesta, ' +
+  'y ninguno si la pregunta se contesta con una frase.';
 
 // Las preguntas que el panel se hace solo. Están fijas a propósito: si las
 // eligiera el modelo, dos corridas no serían comparables entre sí ni entre
@@ -2980,11 +3029,129 @@ function instruccionAuto() {
 }
 
 // Markdown mínimo: negrita y títulos. El resto lo resuelve pre-wrap.
-function formatoTexto(t) {
-  return escapar(t)
-    .replace(/^#{1,6}\s*(.+)$/gm, '<b>$1</b>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+// ====================================================================
+// La respuesta del modelo, maquetada como una nota
+// ====================================================================
+// Antes la respuesta salía como un bloque de texto preformateado, y una
+// respuesta de mil palabras así no se lee: se hojea. Acá se arma con ancho de
+// columna fijo, títulos, listas, y —lo que más cambia— las tablas como tablas
+// y los números como gráfico cuando el modelo pide uno.
+//
+// El modelo nunca dibuja: pide. Manda un bloque con los datos y el gráfico lo
+// dibuja el mismo código que dibuja todo lo demás en el panel. Así una barra
+// acá y una barra en Comparado significan lo mismo.
+
+function enLinea(s) {
+  return escapar(s)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,;:!?]|$)/g, '$1<em>$2</em>');
 }
+
+function filaTabla(linea) {
+  return linea.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(c => c.trim());
+}
+const ES_SEPARADOR = /^\s*\|?[\s:|-]*-[\s:|-]*\|?\s*$/;
+
+// Un número con formato castellano —1.735, 12,5— vuelve a ser número para
+// poder alinear la columna a la derecha sin adivinar.
+function pareceNumero(s) {
+  return /^[-+]?[\d.]+(,\d+)?\s*%?$/.test(String(s).trim()) && /\d/.test(s);
+}
+
+function graficoPedido(json) {
+  let g;
+  try { g = JSON.parse(json); } catch (e) {
+    return `<p class="explica">El modelo pidió un gráfico con datos que no se entienden, así que no se dibujó.</p>`;
+  }
+  const datos = (Array.isArray(g.datos) ? g.datos : [])
+    .map(d => ({ et: String(d.et === undefined ? d.etiqueta : d.et),
+                 v: Number(d.v === undefined ? d.valor : d.v) }))
+    .filter(d => d.et && isFinite(d.v));
+  if (!datos.length) return '';
+  // Siempre de mayor a menor: es la única forma en que una barra se lee sin
+  // tener que recorrer todas las etiquetas antes de entender nada.
+  datos.sort((a, b) => b.v - a.v);
+  const paleta = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--violeta)', 'var(--rojo)'];
+  return `<figure class="figIA">
+    ${g.titulo ? `<figcaption><strong>${escapar(g.titulo)}</strong>${g.sub ? ` · <span>${escapar(g.sub)}</span>` : ''}</figcaption>` : ''}
+    ${barras(datos.map((d, i) => ({ et: d.et, v: d.v, color: paleta[i % paleta.length],
+      vt: fmt(d.v) + (g.unidad ? ' ' + g.unidad : '') })), { titulo: g.titulo || 'Gráfico' })}
+    <p class="explica" style="margin:8px 0 0">Gráfico pedido por el modelo con datos del contexto.
+      Los números salen de lo capturado; si alguno no te cierra, comparalo con las pestañas de arriba.</p>
+  </figure>`;
+}
+
+function nota(t) {
+  const lineas = String(t || '').split('\n');
+  let h = '', parrafo = [], lista = null;
+
+  const cerrarParrafo = () => { if (parrafo.length) { h += `<p>${enLinea(parrafo.join(' '))}</p>`; parrafo = []; } };
+  const cerrarLista = () => { if (lista) { h += `</${lista}>`; lista = null; } };
+  const cerrar = () => { cerrarParrafo(); cerrarLista(); };
+
+  for (let i = 0; i < lineas.length; i++) {
+    const l = lineas[i];
+
+    // --- bloques cercados ---
+    const cerca = l.match(/^\s*```+\s*(\w*)/);
+    if (cerca) {
+      cerrar();
+      const cuerpo = [];
+      for (i++; i < lineas.length && !/^\s*```/.test(lineas[i]); i++) cuerpo.push(lineas[i]);
+      const dentro = cuerpo.join('\n');
+      h += /^(grafico|gráfico|chart)$/i.test(cerca[1]) ? graficoPedido(dentro)
+                                                       : `<pre>${escapar(dentro)}</pre>`;
+      continue;
+    }
+
+    // --- tablas ---
+    if (/^\s*\|/.test(l) && lineas[i + 1] && ES_SEPARADOR.test(lineas[i + 1])) {
+      cerrar();
+      const cab = filaTabla(l);
+      const filas = [];
+      for (i += 2; i < lineas.length && /^\s*\|/.test(lineas[i]); i++) filas.push(filaTabla(lineas[i]));
+      i--;
+      const alinea = cab.map((_, c) => filas.length && filas.every(f => !f[c] || pareceNumero(f[c])));
+      h += `<div class="envTabla"><table class="datos"><thead><tr>` +
+        cab.map((c, j) => `<th${alinea[j] ? ' style="text-align:right"' : ''}>${enLinea(c)}</th>`).join('') +
+        `</tr></thead><tbody>` +
+        filas.map(f => `<tr>` + cab.map((_, j) =>
+          `<td${alinea[j] ? ' style="text-align:right"' : ''}>${enLinea(f[j] || '')}</td>`).join('') + `</tr>`).join('') +
+        `</tbody></table></div>`;
+      continue;
+    }
+
+    // --- títulos ---
+    const tit = l.match(/^\s*(#{1,6})\s*(.+?)\s*#*\s*$/);
+    if (tit) { cerrar(); h += `<h3>${enLinea(tit[2])}</h3>`; continue; }
+
+    // Una línea sola en negrita es un título aunque no traiga almohadillas:
+    // los modelos la usan como subtítulo todo el tiempo.
+    const negrita = l.match(/^\s*\*\*(.+?)\*\*:?\s*$/);
+    if (negrita) { cerrar(); h += `<h3>${enLinea(negrita[1])}</h3>`; continue; }
+
+    // --- listas ---
+    const punto = l.match(/^\s*[-*•]\s+(.+)$/);
+    const numero = l.match(/^\s*\d+[.)]\s+(.+)$/);
+    if (punto || numero) {
+      cerrarParrafo();
+      const quiere = punto ? 'ul' : 'ol';
+      if (lista !== quiere) { cerrarLista(); h += `<${quiere}>`; lista = quiere; }
+      h += `<li>${enLinea((punto || numero)[1])}</li>`;
+      continue;
+    }
+
+    if (!l.trim()) { cerrar(); continue; }
+    cerrarLista();
+    parrafo.push(l.trim());
+  }
+  cerrar();
+  return h || `<p class="explica">El modelo no devolvió texto.</p>`;
+}
+
+// Se mantiene el nombre viejo porque lo usan tres llamadores.
+function formatoTexto(t) { return nota(t); }
 
 // Una clave por proveedor, compartida entre la clasificación y las preguntas.
 // Las versiones anteriores guardaban una sola clave sin decir de quién era:
@@ -3031,8 +3198,20 @@ function errorHTML(e) {
     <code>python3 -m http.server</code> en la carpeta, y abrilo en <code>localhost:8000</code>.</div>`;
 }
 
+// Un micrófono dibujado, no la palabra "dictar": el botón tiene que leerse de
+// un vistazo y ser lo primero que la mano encuentra al lado del campo.
+const ICONO_MIC = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+  <path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z"/>
+  <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6"/></svg>`;
+
 function renderPreguntas() {
   const prov = leerLocal('anubis_prov') || 'anthropic';
+  const tieneAnth = !!claveDe('anthropic'), tieneOa = !!claveDe('openai');
+  const hayClave = tieneAnth || tieneOa;
+  // Una vez cargadas, las claves estorban: se pliegan solas y el foco queda en
+  // la pregunta, que es a lo que se viene.
+  const cualesClaves = [tieneAnth ? 'Anthropic' : '', tieneOa ? 'OpenAI' : ''].filter(Boolean).join(' y ');
   const ctx = contextoParaModelo();
   const tam = Math.round(JSON.stringify(ctx).length / 1024);
   const hayTemas = !!ctx.temas_y_agenda;
@@ -3044,11 +3223,10 @@ function renderPreguntas() {
     Eso es lo que permite usar el modelo económico para casi todo y reservar el avanzado para lo que
     de verdad requiere interpretación. Contexto actual: ~${tam} KB${hayTemas ? ', con temas y agenda incluidos' : '. Todavía sin clasificar: el modelo no va a poder hablar de temas'}.</p>
 
-    <div class="tarjeta">
-      <div class="cabTarjeta"><div class="crece">
-        <h3>Claves de API</h3>
-        <p class="sub">Quedan sólo en este navegador. La del modelo avanzado no se guarda nunca.</p>
-      </div></div>
+    <details class="avanzado claves" id="detClaves"${hayClave ? '' : ' open'}>
+      <summary>Claves de API <em>${hayClave ? 'ya cargadas · ' + escapar(cualesClaves) : 'hacen falta para preguntar'}</em></summary>
+      <p class="explica" style="margin:0 0 10px">Quedan sólo en este navegador.
+        La del modelo avanzado no se guarda nunca.</p>
       <div class="par" style="gap:12px">
         <label class="explica" style="display:block">Anthropic <em>(Claude)</em>
           <input type="password" id="kAnthropic" placeholder="sk-ant-…" style="width:100%;margin-top:6px"
@@ -3057,7 +3235,7 @@ function renderPreguntas() {
           <input type="password" id="kOpenai" placeholder="sk-…" style="width:100%;margin-top:6px"
                  value="${escapar(claveDe('openai'))}"></label>
       </div>
-    </div>
+    </details>
 
     <div class="tarjeta">
       <div class="cabTarjeta"><div class="crece">
@@ -3081,28 +3259,28 @@ function renderPreguntas() {
         <p class="sub">Cualquier cosa que no esté en las cinco de arriba</p>
       </div></div>
       <div class="filtros" style="margin:0 0 14px;padding:0;border:0;background:transparent">
-        <label for="pProv">Proveedor</label>
+        <label for="pProv">Modelo</label>
         <select id="pProv">
-          <option value="anthropic"${prov === 'anthropic' ? ' selected' : ''}>Anthropic</option>
-          <option value="openai"${prov === 'openai' ? ' selected' : ''}>OpenAI</option>
+          <option value="anthropic"${prov === 'anthropic' ? ' selected' : ''}>Claude</option>
+          <option value="openai"${prov === 'openai' ? ' selected' : ''}>ChatGPT</option>
         </select>
-        <label for="pModo">Modelo</label>
         <select id="pModo">
           <option value="economico">Económico — para todo lo habitual</option>
           <option value="avanzado">Avanzado — sólo lectura editorial</option>
         </select>
       </div>
 
-      <textarea id="pPregunta" rows="3" placeholder="Escribí o dictá. Por ejemplo: ¿qué temas cubrió la competencia que nosotros no tocamos?"></textarea>
-      <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap">
-        <button class="primario" id="pDictar" style="background:var(--marca);color:#fff">Preguntar hablando</button>
-        <button id="pEnviar">Preguntar escribiendo</button>
-        <button id="pCopiar">Copiar el contexto</button>
-        <span id="pEstado" style="font-size:12px;color:var(--tinta-3)"></span>
+      <div class="cajaPregunta">
+        <button class="microfono" id="pDictar" type="button" title="Preguntar hablando"
+                aria-label="Preguntar hablando">${ICONO_MIC}</button>
+        <textarea id="pPregunta" rows="2"
+          placeholder="Tocá el micrófono y hablá, o escribí acá. Por ejemplo: ¿qué temas cubrió la competencia que nosotros no tocamos?"></textarea>
+        <button class="primario enviarPregunta" id="pEnviar" type="button" title="Preguntar">Preguntar</button>
       </div>
-      <p class="explica" style="margin:10px 0 0" id="pDictNota">Tocá una vez, hablá, y cuando hagas una
-        pausa la pregunta sale sola. Usa el reconocimiento de voz de Chrome, que no cuesta nada; si ese
-        falla, graba y transcribe con el modelo económico de OpenAI.</p>
+      <div class="pieCaja">
+        <span id="pEstado"></span>
+        <button id="pCopiar" class="fantasma">Copiar el contexto</button>
+      </div>
       <div id="pRespuesta"></div>
     </div>
 
@@ -3113,8 +3291,22 @@ function renderPreguntas() {
       guardada acá. Una restricción por usuario exige un servidor que valide identidad, y eso es otra etapa.
     </div>`;
 
-  $('#kAnthropic').addEventListener('change', e => guardarLocal('anubis_clave_anthropic', e.target.value.trim()));
-  $('#kOpenai').addEventListener('change', e => guardarLocal('anubis_clave_openai', e.target.value.trim()));
+  // Al cargar una clave, el panel se pliega solo y el foco salta a la pregunta:
+  // esa configuración se hace una vez y después sólo estorba.
+  const guardarClave = (prov, input) => {
+    guardarLocal('anubis_clave_' + prov, input.value.trim());
+    if (input.value.trim()) {
+      const det = $('#detClaves');
+      if (det) {
+        det.open = false;
+        const s = det.querySelector('summary em');
+        if (s) s.textContent = 'ya cargadas';
+      }
+      $('#pPregunta').focus();
+    }
+  };
+  $('#kAnthropic').addEventListener('change', e => guardarClave('anthropic', e.target));
+  $('#kOpenai').addEventListener('change', e => guardarClave('openai', e.target));
   $('#pProv').addEventListener('change', e => guardarLocal('anubis_prov', e.target.value));
   $('#pCopiar').addEventListener('click', () => {
     navigator.clipboard.writeText(JSON.stringify(contextoParaModelo(), null, 2));
@@ -3122,6 +3314,10 @@ function renderPreguntas() {
   });
   $('#pEnviar').addEventListener('click', preguntar);
   $('#pDictar').addEventListener('click', alternarDictado);
+  // Enter manda, Shift+Enter hace un renglón: es lo que ya espera la mano.
+  $('#pPregunta').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); preguntar(); }
+  });
   $('#aClaude').addEventListener('click', () => analisisAuto(['anthropic']));
   $('#aGpt').addEventListener('click', () => analisisAuto(['openai']));
   $('#aAmbos').addEventListener('click', () => analisisAuto(['anthropic', 'openai']));
@@ -3219,8 +3415,12 @@ const DIC = { activo: false, rec: null, grabador: null, stream: null, trozos: []
 function dictEstado(txt, ocupado) {
   const b = $('#pDictar');
   if (b) {
-    b.textContent = DIC.activo ? 'Escuchando… (tocá para cortar)' : 'Preguntar hablando';
+    // El estado va en una clase y no en el texto: adentro hay un ícono, y
+    // escribirle encima lo borraría.
+    b.classList.toggle('escuchando', !!DIC.activo);
     b.disabled = !!ocupado;
+    b.title = DIC.activo ? 'Escuchando — tocá para cortar' : 'Preguntar hablando';
+    b.setAttribute('aria-label', b.title);
   }
   if ($('#pEstado')) $('#pEstado').textContent = txt || '';
 }
