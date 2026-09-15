@@ -244,7 +244,7 @@ button.cliente:disabled { opacity: .5; cursor: default; }
 
 <header class="barra">
   <span class="logo">INCERTIS ANUBIS</span>
-  <span class="sub">Panel de análisis · v3.3</span>
+  <span class="sub">Panel de análisis · v3.5</span>
   <span class="der">
     <button class="fantasma" id="btnTema" title="Cambiar tema">Tema</button>
     <button class="fantasma" id="btnInforme" title="Descargar el informe en .pptx, que Keynote abre">Descargar informe</button>
@@ -1074,15 +1074,36 @@ ${slides.map((_, i) => `<Relationship Id="rId${i + 2}" Type="${NS_R}/slide" Targ
   // y ahí sí hace falta una segunda llamada en crudo: un día de cinco cuentas
   // pasa ese tope sin esfuerzo.
   async function leer(cfg, ruta) {
-    const r = await fetch(url(cfg, ruta), { headers: cabeceras(cfg) });
+    const r = await fetch(url(cfg, ruta), { headers: cabeceras(cfg), cache: 'no-store' });
     if (r.status === 404) return null;
     if (!r.ok) throw await fallo(r);
     const j = await r.json();
     if (j.content && j.encoding === 'base64') return { texto: deBase64(j.content), sha: j.sha };
+    // Arriba de 1 MB el campo content viene vacío y hay que pedirlo en crudo.
+    return { texto: await leerTexto(cfg, ruta), sha: j.sha };
+  }
 
-    const crudo = await fetch(url(cfg, ruta), { headers: cabeceras(cfg, 'application/vnd.github.raw') });
-    if (!crudo.ok) throw await fallo(crudo);
-    return { texto: await crudo.text(), sha: j.sha };
+  // Una sola petición, en crudo, para los archivos de datos.
+  //
+  // Antes se pedía primero en JSON y, si venía vacío, se repetía en crudo. Dos
+  // peticiones a la misma URL que sólo se diferencian en la cabecera Accept es
+  // pedirle problemas a la caché del navegador: puede devolver la respuesta
+  // JSON guardada para la petición cruda, y entonces lo que llega no son las
+  // publicaciones sino los metadatos del archivo. Ninguna línea parsea y el
+  // resultado es un día sin publicaciones, sin ningún error de por medio.
+  async function leerTexto(cfg, ruta) {
+    const r = await fetch(url(cfg, ruta), {
+      headers: cabeceras(cfg, 'application/vnd.github.raw'), cache: 'no-store' });
+    if (r.status === 404) return null;
+    if (!r.ok) throw await fallo(r);
+    const texto = await r.text();
+    // Si el servidor ignoró el Accept y mandó metadatos, mejor decirlo que
+    // devolver algo que después no parsea.
+    if (/^\s*\{\s*"(name|sha|size|content|encoding)"/.test(texto.slice(0, 200))) {
+      throw new Error('GitHub devolvió los metadatos del archivo en vez de su contenido. ' +
+        'Recargá la página forzando (Cmd+Shift+R) y probá de nuevo.');
+    }
+    return texto;
   }
 
   // Sólo el sha, para sobrescribir sin bajar un archivo que no vamos a leer.
@@ -1145,9 +1166,9 @@ ${slides.map((_, i) => `<Relationship Id="rId${i + 2}" Type="${NS_R}/slide" Targ
   }
 
   async function bajarCaptura(cfg, archivo) {
-    const r = await leer(cfg, RAIZ + '/' + archivo);
-    if (!r) throw new Error('El archivo ' + archivo + ' ya no está en el repositorio.');
-    return r.texto;
+    const texto = await leerTexto(cfg, RAIZ + '/' + archivo);
+    if (texto === null) throw new Error('El archivo ' + archivo + ' ya no está en el repositorio.');
+    return texto;
   }
 
   // Comprobación previa: dice si el token entra y si puede escribir, antes de
@@ -1166,14 +1187,14 @@ ${slides.map((_, i) => `<Relationship Id="rId${i + 2}" Type="${NS_R}/slide" Targ
     };
   }
 
-  global.GitHub = { leer, sha, escribir, leerIndice, anotarEnIndice, publicarCaptura, bajarCaptura, probar,
-                    aBase64, deBase64, RAIZ, INDICE };
+  global.GitHub = { leer, leerTexto, sha, escribir, leerIndice, anotarEnIndice,
+                    publicarCaptura, bajarCaptura, probar, aBase64, deBase64, RAIZ, INDICE };
 })(self);
 
 </script>
 <script>
 'use strict';
-const VERSION = '3.3';
+const VERSION = '3.4';
 console.log('[ANUBIS] panel de análisis v' + VERSION);
 
 // ====================================================================
@@ -1638,12 +1659,24 @@ async function bajarDeGitHub(cfg, elegidas, cliente) {
       avisoCarga(paso);
       if (D.ejecuciones.some(e => e.id === c.archivo)) { n++; continue; }
       const texto = await GitHub.bajarCaptura(cfg, c.archivo);
+
       const posts = [];
+      let rotas = 0;
       for (const linea of texto.split('\n')) {
         const t = linea.trim();
         if (!t) continue;
-        try { posts.push(JSON.parse(t)); } catch (e) { /* línea rota: se saltea */ }
+        try { posts.push(JSON.parse(t)); } catch (e) { rotas++; }
       }
+      // Un archivo que no se pudo leer no se da por cargado: si se registrara
+      // igual, el segundo intento respondería "ya estaban cargadas" y no habría
+      // forma de salir del pozo sin recargar la página.
+      if (!posts.length) {
+        throw new Error(`El archivo ${c.archivo} no trajo ninguna publicación legible` +
+          (rotas ? ` (${rotas} líneas ilegibles de ${texto.split('\n').length})` : ' (llegó vacío)') +
+          `. Primeros caracteres: ${JSON.stringify(texto.slice(0, 120))}`);
+      }
+      if (rotas) console.warn(`[ANUBIS] ${c.archivo}: ${rotas} líneas ilegibles, salteadas`);
+
       for (const q of posts) {
         q.ejecucion_id = c.archivo;   // la unidad de tiempo pasa a ser el archivo del día
         if (!q.mercado) q.mercado = c.mercado || 'Sin mercado';
@@ -1987,7 +2020,151 @@ function agregados(c) {
   o.horas = Array.from({ length: 24 }, (_, h) => P.filter(p => horaLocal(p) === h).length);
   o.tipos = {};
   for (const p of P) o.tipos[p.tipo] = (o.tipos[p.tipo] || 0) + 1;
+  o.formatos = porFormato(P);
   return o;
+}
+
+// ====================================================================
+// Modelo de publicación
+// ====================================================================
+// Cinco formas de publicar, y son decisiones editoriales distintas: mandar a
+// alguien a filmar no se parece en nada a pegar un link. Por eso el formato se
+// mira aparte del tema y aparte del volumen.
+//
+// El formato se deduce acá, en el panel, y no en el recolector: así los días
+// que ya están capturados y subidos entran en este análisis sin volver a
+// recorrer nada.
+
+const FORMATOS = [
+  { k: 'video',    n: 'Video',     c: 'var(--o4)', d: 'video o GIF propio en la publicación' },
+  { k: 'foto',     n: 'Foto',      c: 'var(--o3)', d: 'una o más imágenes' },
+  { k: 'link',     n: 'Solo link', c: 'var(--o2)', d: 'un enlace afuera, con o sin tarjeta' },
+  { k: 'encuesta', n: 'Encuesta',  c: 'var(--violeta)', d: 'pregunta con opciones para votar' },
+  { k: 'texto',    n: 'Texto',     c: 'var(--o1)', d: 'sólo texto, sin nada adjunto' }
+];
+const FORMATO_NOMBRE = FORMATOS.reduce((o, f) => (o[f.k] = f.n, o), {});
+const FORMATO_COLOR = FORMATOS.reduce((o, f) => (o[f.k] = f.c, o), {});
+
+// Sin la bandera global: un regex con /g guarda posición entre llamadas y
+// test() devuelve false una de cada dos veces sobre el mismo texto.
+const HAY_URL = /https?:\/\/[^\s]+/i;
+
+function formatoDe(p) {
+  const tm = p.tipo_media || p.tipo;
+  const adj = Array.isArray(p.adjuntos) ? p.adjuntos : [];
+  if (tm === 'encuesta') return 'encuesta';
+  if (tm === 'video' || adj.some(a => a.tipo === 'video')) return 'video';
+  if (tm === 'imagen' || adj.some(a => a.tipo === 'imagen')) return 'foto';
+  if (tm === 'enlace' || adj.some(a => a.tipo === 'enlace')) return 'link';
+  // Un enlace sin tarjeta renderizada sigue siendo una publicación que manda
+  // afuera: es el caso más común en las cuentas de medios y se perdía entero.
+  if (HAY_URL.test(p.texto || '')) return 'link';
+  return 'texto';
+}
+
+// Devuelve una fila por formato usado, de mayor a menor cantidad, con lo que
+// consiguió cada uno. Medianas y no promedios: un solo posteo viral corre el
+// promedio de un formato entero y hace decir cualquier cosa.
+function porFormato(P) {
+  const grupos = {};
+  for (const p of P) (grupos[formatoDe(p)] = grupos[formatoDe(p)] || []).push(p);
+  return FORMATOS.filter(f => grupos[f.k]).map(f => {
+    const g = grupos[f.k];
+    const vistas = g.map(p => metrica(p, 'vistas'));
+    const reacciones = g.map(p => SENALES.reduce((s, x) => s + (metrica(p, x.k) || 0), 0));
+    const vistasTot = suma(vistas);
+    const reaccionesTot = suma(reacciones);
+    return {
+      k: f.k, n: f.n, color: f.c, d: f.d,
+      posts: g.length,
+      parte: P.length ? g.length / P.length : 0,
+      vistasMed: mediana(vistas),
+      vistasTot,
+      reaccionesPorPost: g.length ? reaccionesTot / g.length : 0,
+      // Por mil vistas: separa "le fue bien porque X lo mostró mucho" de
+      // "a quien lo vio le importó".
+      reaccionesPorMil: vistasTot ? (reaccionesTot / vistasTot) * 1000 : null,
+      repostsMed: mediana(g.map(p => metrica(p, 'reposts'))),
+      // Menos de cinco publicaciones no es un formato: es una anécdota.
+      firme: g.length >= 5
+    };
+  }).sort((a, b) => b.posts - a.posts);
+}
+
+// Tabla de cuentas por formato, en porcentaje. Es la comparación que importa:
+// dos medios con el mismo volumen pueden tener modelos editoriales opuestos.
+function matrizFormatos(ag) {
+  const usados = FORMATOS.filter(f => ag.some(a => a.formatos.some(x => x.k === f.k)));
+  const cab = `<tr><th>Cuenta</th><th style="text-align:right">Posts</th>` +
+    usados.map(f => `<th style="text-align:right">${escapar(f.n)}</th>`).join('') + `</tr>`;
+  const filas = ag.slice().sort((a, b) => b.n - a.n).map(a => {
+    const porK = a.formatos.reduce((o, x) => (o[x.k] = x, o), {});
+    return `<tr><td style="white-space:nowrap">@${escapar(a.handle)}${a.rol === 'propia' ? ' · propia' : ''}</td>
+      <td style="text-align:right">${fmt(a.n)}</td>` +
+      usados.map(f => {
+        const x = porK[f.k];
+        if (!x) return `<td style="text-align:right;color:var(--tinta-3)">—</td>`;
+        const pct = Math.round(x.parte * 100);
+        // El fondo proporcional evita leer treinta números sueltos buscando
+        // cuál es grande: el patrón de cada fila se ve de un vistazo.
+        // La barra crece hacia la derecha, contra el número: si creciera al
+        // revés el ojo lee dos cosas opuestas en la misma celda.
+        return `<td style="text-align:right;position:relative">
+          <span style="position:absolute;inset:2px 2px 2px auto;width:${Math.max(pct, 2)}%;
+            background:${f.c};opacity:.2;border-radius:3px"></span>
+          <span style="position:relative;font-weight:${pct >= 40 ? 700 : 400}">${pct}%</span></td>`;
+      }).join('') + `</tr>`;
+  }).join('');
+  return `<table class="datos"><thead>${cab}</thead><tbody>${filas}</tbody></table>`;
+}
+
+// Una frase que diga en castellano qué modelo tiene la cuenta, porque la
+// tabla la lee quien ya sabe qué busca y la frase la lee cualquiera.
+function frasearModelo(a) {
+  if (!a.formatos.length) return '';
+  const f = a.formatos[0];
+  const pct = Math.round(f.parte * 100);
+  const resto = a.formatos.slice(1).filter(x => x.parte >= 0.1)
+    .map(x => `${x.n.toLowerCase()} ${Math.round(x.parte * 100)}%`).join(', ');
+  const cuanto = pct >= 70 ? 'Casi todo lo que publica'
+               : pct >= 45 ? 'La mayor parte de lo que publica'
+               : 'La porción más grande de lo que publica';
+  return `${cuanto} @${escapar(a.handle)} es <strong>${escapar(f.n.toLowerCase())}</strong> (${pct}%)` +
+    (resto ? `, y después ${escapar(resto)}` : '') + '.';
+}
+
+// El formato que rinde mejor, dicho con la salvedad de que rendir mejor no es
+// causa: un medio pone en video lo que ya sabe que le interesa a la gente.
+function mejorFormato(fs) {
+  const firmes = fs.filter(f => f.firme && f.vistasMed !== null);
+  if (firmes.length < 2) return '';
+  const orden = firmes.slice().sort((a, b) => b.vistasMed - a.vistasMed);
+  const alto = orden[0], bajo = orden[orden.length - 1];
+  const veces = bajo.vistasMed ? alto.vistasMed / bajo.vistasMed : null;
+  return `<div class="comoSeLee"><strong>Cómo se lee.</strong>
+    La publicación típica en <strong>${escapar(alto.n.toLowerCase())}</strong> llega a
+    <strong>${fmt(alto.vistasMed)}</strong> vistas y la de ${escapar(bajo.n.toLowerCase())} a ${fmt(bajo.vistasMed)}` +
+    (veces && isFinite(veces) && veces >= 1.2 ? `, es decir ×${fmt1(veces)}` : '') + `.
+    Ojo con la conclusión fácil: esto no prueba que cambiar de formato suba el alcance.
+    Un medio manda a filmar lo que ya cree que va a interesar, así que parte de la ventaja
+    del video es el tema que hay adentro, no el formato. Lo que sí dice el gráfico es
+    dónde está puesto el esfuerzo y qué devuelve.
+    Los formatos con menos de cinco publicaciones quedan marcados: con tan poco, la mediana es ruido.</div>`;
+}
+
+function tarjetasFormato(fs, titulo, sub) {
+  return tarjeta(titulo, sub,
+    barras(fs.slice().sort((a, b) => (b.vistasMed || 0) - (a.vistasMed || 0)).map(f => ({
+      et: f.n + (f.firme ? '' : ' ⚠'), v: f.vistasMed || 0, color: f.color,
+      vt: fmt(f.vistasMed), v2: fmt(f.posts) + ' posts',
+      tip: `<b>${f.n}</b><br>${fmt(f.posts)} publicaciones (${Math.round(f.parte * 100)}%)<br>` +
+           `Mediana <b>${fmt(f.vistasMed)}</b> vistas<br>${fmt1(f.reaccionesPorPost)} reacciones por publicación` +
+           (f.firme ? '' : '<br><em>pocas publicaciones: poco confiable</em>')
+    })), { titulo: 'Alcance por formato' }),
+    tablaHTML(['Formato', 'Publicaciones', 'Parte del total', 'Vistas medianas',
+               'Reacciones por publicación', 'Reacciones por mil vistas', 'Compartidos medianos'],
+      fs.map(f => [f.n + (f.firme ? '' : ' (pocas)'), fmt(f.posts), Math.round(f.parte * 100) + '%',
+                   fmt(f.vistasMed), fmt1(f.reaccionesPorPost), fmt1(f.reaccionesPorMil), fmt(f.repostsMed)])));
 }
 
 // ====================================================================
@@ -2541,6 +2718,31 @@ function renderComparado() {
   }
   h += `</div>`;
 
+  // --- modelo de publicación -----------------------------------------
+  // Va después de las señales y antes del ritmo porque responde otra pregunta:
+  // no quién gana, sino con qué está jugando cada uno.
+  h += `<h2 class="seccion">Modelo de publicación</h2>
+    <p class="explica">Qué publica cada cuenta, no cuánto. Video, foto, solo link, encuesta o texto pelado
+    son cinco decisiones editoriales con costos muy distintos: filmar y editar no se parece a pegar un enlace.
+    Dos medios con el mismo volumen pueden tener modelos opuestos, y eso explica buena parte
+    de la diferencia de alcance.</p>`;
+
+  const conFormato = ag.filter(a => a.formatos.length);
+  h += `<div class="comoSeLee">${conFormato.map(frasearModelo).join(' ')}</div>`;
+
+  h += tarjeta('Mezcla de formatos, cuenta por cuenta',
+    'Porcentaje de las publicaciones de cada cuenta — cada fila suma 100%',
+    '', matrizFormatos(conFormato));
+
+  const fMercado = porFormato(posts);
+  h += mejorFormato(fMercado);
+  h += `<div class="par">`;
+  h += tarjetasFormato(fMercado, 'Alcance por formato · todo el mercado',
+    `${fmt(posts.length)} publicaciones de ${fmt(cuentas.length)} cuentas juntas`);
+  h += tarjetasFormato(propia.formatos, 'Alcance por formato · @' + escapar(propia.handle),
+    `${fmt(propia.n)} publicaciones de la cuenta de referencia`);
+  h += `</div>`;
+
   // --- ritmo ---------------------------------------------------------
   h += `<h2 class="seccion">Ritmo de publicación</h2>
     <p class="explica">Publicaciones por hora del día, hora local. Sirve para ver quién corta de noche y quién no.</p>`;
@@ -2606,10 +2808,28 @@ function renderPropio() {
     columnasHora(ag.horas, ag.color, { titulo: 'Ritmo' }),
     tablaHTML(['Hora', 'Publicaciones'], ag.horas.map((v, i) => [String(i).padStart(2, '0') + ':00', String(v)])));
 
+  // --- modelo de publicación de esta cuenta ---------------------------
+  h += `<h2 class="seccion">Modelo de publicación</h2>
+    <p class="explica">${frasearModelo(ag)}</p>`;
+  h += `<div class="par">`;
+  h += tarjeta('Mezcla de formatos', 'Cuánto de cada cosa publicó',
+    barras(ag.formatos.map(f => ({
+      et: f.n, v: f.posts, color: f.color,
+      vt: fmt(f.posts) + ' · ' + Math.round(100 * f.parte) + '%',
+      tip: `<b>${f.n}</b> — ${escapar(f.d)}<br>${fmt(f.posts)} publicaciones` })), { titulo: 'Mezcla de formatos' }),
+    tablaHTML(['Formato', 'Qué es', 'Publicaciones', 'Porcentaje'],
+      ag.formatos.map(f => [f.n, f.d, fmt(f.posts), Math.round(100 * f.parte) + '%'])));
+  h += tarjetasFormato(ag.formatos, 'Qué consigue cada formato',
+    'Vistas medianas — el ⚠ marca los formatos con menos de cinco publicaciones');
+  h += `</div>`;
+  h += mejorFormato(ag.formatos);
+
+  // El desglose viejo sigue disponible: repost y respuesta no son formatos
+  // pero son decisiones, y conviene no perderlas de vista.
   const tipos = Object.entries(ag.tipos).sort((a, b) => b[1] - a[1]);
-  h += tarjeta('Formatos', 'Qué tipo de publicación usó',
-    barras(tipos.map(([t, v]) => ({ et: t, v, color: ag.color, vt: fmt(v) + ' · ' + Math.round(100 * v / ag.n) + '%' })), { titulo: 'Formatos' }),
-    tablaHTML(['Formato', 'Publicaciones', 'Porcentaje'], tipos.map(([t, v]) => [t, fmt(v), Math.round(100 * v / ag.n) + '%'])));
+  h += tarjeta('Original, repost o respuesta', 'Otra división: de quién es lo que publica',
+    '', tablaHTML(['Tipo', 'Publicaciones', 'Porcentaje'],
+      tipos.map(([t, v]) => [t, fmt(v), Math.round(100 * v / ag.n) + '%'])));
 
   // Publicaciones destacadas por cada señal
   h += `<h2 class="seccion">Publicaciones destacadas</h2>
@@ -2704,8 +2924,20 @@ function contextoParaModelo() {
       por_mil_vistas: SENALES.reduce((o, s) => (o[s.k] = a[s.k + 'K'] === null ? null : +a[s.k + 'K'].toFixed(2), o), {}),
       totales: SENALES.reduce((o, s) => (o[s.k] = a[s.k + 'Tot'], o), {}),
       publicaciones_por_hora: a.horas,
-      formatos: a.tipos
+      original_repost_respuesta: a.tipos,
+      // El modelo de publicación con su rendimiento al lado: sin esto el
+      // modelo no puede decir nada sobre decisiones editoriales, sólo sobre
+      // resultados.
+      modelo_de_publicacion: a.formatos.map(f => ({
+        formato: f.n, publicaciones: f.posts, parte: +(f.parte * 100).toFixed(1),
+        vistas_mediana: f.vistasMed, reacciones_por_publicacion: +f.reaccionesPorPost.toFixed(1),
+        reacciones_por_mil_vistas: f.reaccionesPorMil === null ? null : +f.reaccionesPorMil.toFixed(2),
+        muestra_suficiente: f.firme
+      }))
     })),
+    nota_sobre_formatos: 'El formato se deduce de los adjuntos de cada publicación. "Solo link" es toda ' +
+      'publicación cuyo contenido principal es un enlace afuera. Que un formato tenga más alcance no prueba ' +
+      'que el formato cause el alcance: el medio elige qué temas manda a filmar.',
     titulares_muestra: cuentas.map(c => ({
       cuenta: c.handle,
       titulares: c.posts.slice()
@@ -2735,6 +2967,7 @@ const PREGUNTAS_AUTO = [
   'Agenda del día: qué dominó la conversación en el conjunto del mercado y cómo se repartió por tema.',
   'La cuenta propia frente al mercado: en qué temas pesa más y en cuáles menos que el conjunto, y qué dice eso de su perfil editorial.',
   'Rendimiento: qué temas le consiguen a la cuenta propia más reacción por publicación que al mercado, y cuáles menos. Separá el esfuerzo del lector (compartir y responder cuestan más que un me gusta).',
+  'Modelo de publicación: con qué formatos trabaja cada cuenta —video, foto, solo link, encuesta, texto— y en qué se diferencia el de la cuenta propia del de sus competidores. Decí qué rinde y qué no, y aclarando dónde la muestra es chica y dónde la ventaja puede venir del tema y no del formato.',
   'Huecos: qué cubrieron dos o más competidores que la cuenta propia no tocó, y cuáles de esos huecos parecen relevantes y cuáles no.',
   'Una recomendación operativa para mañana, concreta y accionable, que se desprenda de los datos y no de supuestos.'
 ];
@@ -2862,16 +3095,14 @@ function renderPreguntas() {
 
       <textarea id="pPregunta" rows="3" placeholder="Escribí o dictá. Por ejemplo: ¿qué temas cubrió la competencia que nosotros no tocamos?"></textarea>
       <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap">
-        <button class="primario" id="pEnviar" style="background:var(--marca);color:#fff">Preguntar</button>
-        <button id="pDictar">Dictar</button>
-        <label class="explica" style="margin:0;display:flex;align-items:center;gap:6px">
-          <input type="checkbox" id="pAuto" style="width:auto;margin:0"> preguntar al terminar de dictar</label>
+        <button class="primario" id="pDictar" style="background:var(--marca);color:#fff">Preguntar hablando</button>
+        <button id="pEnviar">Preguntar escribiendo</button>
         <button id="pCopiar">Copiar el contexto</button>
         <span id="pEstado" style="font-size:12px;color:var(--tinta-3)"></span>
       </div>
-      <p class="explica" style="margin:10px 0 0" id="pDictNota">El dictado usa el reconocimiento de voz
-        de Chrome, que no cuesta nada. Si ese falla, graba y transcribe con el modelo económico de OpenAI,
-        que sí consume clave.</p>
+      <p class="explica" style="margin:10px 0 0" id="pDictNota">Tocá una vez, hablá, y cuando hagas una
+        pausa la pregunta sale sola. Usa el reconocimiento de voz de Chrome, que no cuesta nada; si ese
+        falla, graba y transcribe con el modelo económico de OpenAI.</p>
       <div id="pRespuesta"></div>
     </div>
 
@@ -2971,20 +3202,46 @@ async function contrastar(ok, claves) {
 // seguido con error de red. Cuando eso pasa se graba el audio y se transcribe
 // con el modelo económico de OpenAI, que es confiable pero consume clave.
 
-const DIC = { activo: false, rec: null, grabador: null, stream: null, trozos: [], base: '' };
+// Una sola interacción: se toca el botón una vez, se habla, y la pausa cierra
+// el dictado y manda la pregunta sola. Nadie tiene que acordarse de apretar
+// nada al final, que era el paso que sobraba.
+//
+// PAUSA es cuánto silencio significa "terminé". Menos de un segundo y medio
+// corta a mitad de frase, porque al pensar se hacen pausas más largas que al
+// hablar; más de dos y parece que se colgó.
+const PAUSA = 1600;        // ms de silencio que dan la frase por terminada
+const ESPERA_INICIAL = 9000; // ms sin que se escuche nada antes de rendirse
+const UMBRAL_VOZ = 0.015;  // energía mínima para considerar que alguien habla
+
+const DIC = { activo: false, rec: null, grabador: null, stream: null, trozos: [],
+              base: '', reloj: null, vigia: null, ctx: null, huboVoz: false };
 
 function dictEstado(txt, ocupado) {
   const b = $('#pDictar');
   if (b) {
-    b.textContent = DIC.activo ? 'Detener' : 'Dictar';
+    b.textContent = DIC.activo ? 'Escuchando… (tocá para cortar)' : 'Preguntar hablando';
     b.disabled = !!ocupado;
   }
   if ($('#pEstado')) $('#pEstado').textContent = txt || '';
 }
 
+// Cada vez que entra sonido se reinicia la cuenta regresiva. Si llega a cero
+// es que hubo pausa, y la pausa es la señal de que la pregunta está completa.
+function reprogramarPausa(alCerrar, ms) {
+  clearTimeout(DIC.reloj);
+  DIC.reloj = setTimeout(alCerrar, ms || PAUSA);
+}
+
+function limpiarRelojes() {
+  clearTimeout(DIC.reloj); DIC.reloj = null;
+  if (DIC.vigia) { cancelAnimationFrame(DIC.vigia); DIC.vigia = null; }
+  if (DIC.ctx) { try { DIC.ctx.close(); } catch (_) {} DIC.ctx = null; }
+}
+
 function alternarDictado() {
   if (DIC.activo) return detenerDictado();
   DIC.base = $('#pPregunta').value.trim();
+  DIC.huboVoz = false;
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (SR) return arrancarVoz(SR);
   arrancarGrabacion('Este navegador no tiene reconocimiento de voz.');
@@ -2998,42 +3255,56 @@ function arrancarVoz(SR) {
   let final = '';
   let huboAlgo = false;
 
+  // Los parciales sirven de detector de pausa: llegan mientras se habla y
+  // dejan de llegar apenas hay silencio, sin tener que medir el audio.
   rec.onresult = e => {
     let parcial = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const t = e.results[i][0].transcript;
       if (e.results[i].isFinal) { final += t; huboAlgo = true; } else parcial += t;
     }
+    if (parcial.trim()) huboAlgo = true;
+    DIC.huboVoz = DIC.huboVoz || huboAlgo;
     $('#pPregunta').value = (DIC.base ? DIC.base + ' ' : '') + (final + parcial).trim();
+    if (DIC.rec === rec) reprogramarPausa(() => { try { rec.stop(); } catch (_) {} });
   };
 
   rec.onerror = e => {
     // Sin permiso no hay nada que reintentar; el resto de los errores suelen
     // ser del servicio de voz y ahí la grabación sí funciona.
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-      DIC.activo = false;
+      DIC.activo = false; DIC.rec = null; limpiarRelojes();
       dictEstado('Chrome no dio acceso al micrófono. Habilitalo en el candado de la barra de direcciones.');
       return;
     }
     if (e.error === 'no-speech' || e.error === 'aborted') return;
+    limpiarRelojes();
     try { rec.stop(); } catch (_) {}
     DIC.rec = null;
     arrancarGrabacion('El reconocimiento de Chrome falló (' + e.error + ').');
   };
 
-  // El cierre pasa siempre por acá, lo haya pedido el usuario o no: es el
-  // único momento en que el texto final está completo.
+  // El cierre pasa siempre por acá, lo haya pedido el usuario, la pausa o el
+  // propio Chrome: es el único momento en que el texto final está completo.
   rec.onend = () => {
     if (DIC.rec !== rec) return;
+    limpiarRelojes();
     DIC.activo = false; DIC.rec = null;
-    dictEstado(huboAlgo ? 'Dictado listo.' : 'No se escuchó nada.');
-    if (huboAlgo) quizasPreguntar();
+    if (huboAlgo && $('#pPregunta').value.trim()) {
+      dictEstado('Preguntando…');
+      preguntar();
+    } else {
+      dictEstado('No se escuchó nada.');
+    }
   };
 
   try {
     rec.start();
     DIC.rec = rec; DIC.activo = true;
-    dictEstado('Escuchando… hablá y después tocá Detener.');
+    dictEstado('Escuchando… hacé una pausa cuando termines.');
+    // Si no llega ni un parcial, no hay micrófono útil: mejor rendirse que
+    // dejar el botón encendido para siempre.
+    reprogramarPausa(() => { try { rec.stop(); } catch (_) {} }, ESPERA_INICIAL);
   } catch (e) {
     arrancarGrabacion('No se pudo iniciar el reconocimiento.');
   }
@@ -3042,12 +3313,14 @@ function arrancarVoz(SR) {
 async function arrancarGrabacion(motivo) {
   const clave = $('#kOpenai').value.trim();
   if (!clave) {
+    DIC.activo = false;
     dictEstado(motivo + ' Para transcribir hace falta la clave de OpenAI, que es la única de las dos con transcripción.');
     return;
   }
   try {
     DIC.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (e) {
+    DIC.activo = false;
     dictEstado(motivo + ' Y el micrófono no está disponible: ' + e.message);
     return;
   }
@@ -3055,26 +3328,58 @@ async function arrancarGrabacion(motivo) {
   const g = new MediaRecorder(DIC.stream);
   g.ondataavailable = ev => { if (ev.data.size) DIC.trozos.push(ev.data); };
   g.onstop = async () => {
-    DIC.stream.getTracks().forEach(t => t.stop());
-    DIC.stream = null;
+    limpiarRelojes();
+    if (DIC.stream) { DIC.stream.getTracks().forEach(t => t.stop()); DIC.stream = null; }
+    if (!DIC.huboVoz) { DIC.activo = false; dictEstado('No se escuchó nada.'); return; }
     const audio = new Blob(DIC.trozos, { type: g.mimeType || 'audio/webm' });
     dictEstado('Transcribiendo…', true);
     try {
       const texto = await transcribir(audio, clave);
       $('#pPregunta').value = ((DIC.base ? DIC.base + ' ' : '') + texto).trim();
-      dictEstado('Transcripción lista.');
-      if (texto.trim()) quizasPreguntar();
+      DIC.activo = false;
+      if (texto.trim()) { dictEstado('Preguntando…'); preguntar(); }
+      else dictEstado('No se entendió nada.');
     } catch (e) {
+      DIC.activo = false;
       dictEstado('No se pudo transcribir: ' + e.message);
     }
   };
   g.start();
   DIC.grabador = g; DIC.activo = true;
-  dictEstado(motivo + ' Grabando: hablá y después tocá Detener.');
+  dictEstado(motivo + ' Escuchando: hacé una pausa cuando termines.');
+  escucharSilencio(() => detenerDictado());
+}
+
+// Acá no hay transcripción en vivo que avise de la pausa, así que se mide la
+// energía del micrófono: mientras suene, se reinicia el reloj.
+function escucharSilencio(alCerrar) {
+  let ctx;
+  try {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+  } catch (e) { reprogramarPausa(alCerrar, 15000); return; }
+  DIC.ctx = ctx;
+  const analizador = ctx.createAnalyser();
+  analizador.fftSize = 1024;
+  ctx.createMediaStreamSource(DIC.stream).connect(analizador);
+  const datos = new Uint8Array(analizador.fftSize);
+
+  reprogramarPausa(alCerrar, ESPERA_INICIAL);
+  (function mirar() {
+    if (!DIC.activo || DIC.ctx !== ctx) return;
+    DIC.vigia = requestAnimationFrame(mirar);
+    analizador.getByteTimeDomainData(datos);
+    let suma = 0;
+    for (let i = 0; i < datos.length; i++) { const v = (datos[i] - 128) / 128; suma += v * v; }
+    if (Math.sqrt(suma / datos.length) > UMBRAL_VOZ) {
+      DIC.huboVoz = true;
+      reprogramarPausa(alCerrar);
+    }
+  })();
 }
 
 function detenerDictado() {
   DIC.activo = false;
+  clearTimeout(DIC.reloj); DIC.reloj = null;
   // El reconocimiento se cierra por su propio onend, que es donde el texto
   // final ya está completo; acá sólo se le pide que corte.
   if (DIC.rec) { try { DIC.rec.stop(); } catch (_) {} dictEstado('Cerrando el dictado…'); return; }
@@ -3083,11 +3388,6 @@ function detenerDictado() {
     try { g.stop(); } catch (_) {}
     dictEstado('Procesando el audio…', true);
   }
-}
-
-function quizasPreguntar() {
-  const chk = $('#pAuto');
-  if (chk && chk.checked && $('#pPregunta').value.trim()) preguntar();
 }
 
 async function transcribir(audio, clave) {
