@@ -1,0 +1,4213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Incertis Anubis · Análisis</title>
+<style>
+/* ===================================================================
+   INCERTIS ANUBIS · Panel de análisis · v1.3
+   Archivo único. Sin dependencias externas. Los gráficos son SVG propio.
+   =================================================================== */
+
+:root {
+  color-scheme: light;
+  --plano:        #f9f9f7;
+  --sup:          #fcfcfb;
+  --tinta:        #0b0b0b;
+  --tinta-2:      #52514e;
+  --tinta-3:      #898781;
+  --grilla:       #e1e0d9;
+  --eje:          #c3c2b7;
+  --borde:        rgba(11,11,11,0.10);
+  --marca:        #16233d;
+
+  --s1: #2a78d6;  /* azul     */
+  --s2: #eb6834;  /* naranja  */
+  --s3: #1baf7a;  /* aqua     */
+  --s4: #eda100;  /* amarillo */
+  --neutro:       #b9b8b1;
+  --ok:           #006300;
+
+  /* Rampa ordinal para las cuatro señales: van de menor a mayor esfuerzo
+     de la audiencia, así que el color también va de claro a oscuro. */
+  --o1: #86b6ef;  --o2: #5598e7;  --o3: #2a78d6;  --o4: #184f95;
+
+  /* Colores de marca de las cuentas de referencia */
+  --rojo:   #e34948;   /* Clarín */
+  --violeta:#4a3aa7;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --plano:   #0d0d0d;
+    --sup:     #1a1a19;
+    --tinta:   #ffffff;
+    --tinta-2: #c3c2b7;
+    --tinta-3: #898781;
+    --grilla:  #2c2c2a;
+    --eje:     #383835;
+    --borde:   rgba(255,255,255,0.10);
+    --marca:   #10192c;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --neutro: #55544f;
+    --ok: #0ca30c;
+    --o1: #cde2fb; --o2: #9ec5f4; --o3: #5598e7; --o4: #256abf;
+    --rojo: #e66767; --violeta: #9085e9;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --plano:#0d0d0d; --sup:#1a1a19; --tinta:#fff; --tinta-2:#c3c2b7; --tinta-3:#898781;
+  --grilla:#2c2c2a; --eje:#383835; --borde:rgba(255,255,255,0.10); --marca:#10192c;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --neutro:#55544f; --ok:#0ca30c;
+  --o1:#cde2fb; --o2:#9ec5f4; --o3:#5598e7; --o4:#256abf;
+  --rojo:#e66767; --violeta:#9085e9;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--plano);
+  color: var(--tinta);
+  font: 14px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* ---------- barra ---------- */
+.barra {
+  background: var(--marca); color: #fff;
+  padding: 13px 22px; display: flex; align-items: center; gap: 16px;
+  position: sticky; top: 0; z-index: 30;
+}
+.logo { font-weight: 700; letter-spacing: .12em; font-size: 14px; }
+.barra .sub { color: #9fadc6; font-size: 12px; }
+.barra .der { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+/* ---------- controles ---------- */
+button, select, input {
+  font: inherit; border-radius: 6px; border: 1px solid var(--borde);
+  background: var(--sup); color: var(--tinta); padding: 7px 12px;
+}
+button { cursor: pointer; font-weight: 600; }
+button:hover { background: var(--plano); }
+button.primario { background: #fff; color: var(--marca); border-color: transparent; }
+button.fantasma { background: transparent; color: #cdd6e6; border-color: rgba(255,255,255,.25); }
+button.fantasma:hover { background: rgba(255,255,255,.1); }
+button.chip {
+  padding: 5px 13px; border-radius: 99px; font-size: 13px;
+  background: transparent; color: var(--tinta-2); border-color: var(--borde);
+}
+button.chip[aria-pressed="true"] { background: var(--tinta); color: var(--sup); border-color: var(--tinta); }
+.oculto { display: none !important; }
+
+/* ---------- estructura ---------- */
+.envoltorio { max-width: 1180px; margin: 0 auto; padding: 20px 18px 60px; }
+.filtros {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  padding: 12px 14px; background: var(--sup); border: 1px solid var(--borde);
+  border-radius: 9px; margin-bottom: 18px;
+}
+.filtros label { font-size: 12px; font-weight: 600; color: var(--tinta-2); }
+
+.pestanas { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+
+h2.seccion {
+  font-size: 12px; text-transform: uppercase; letter-spacing: .09em;
+  color: var(--tinta-2); margin: 28px 0 4px; font-weight: 700;
+}
+p.explica { margin: 0 0 14px; color: var(--tinta-2); max-width: 70ch; font-size: 13px; }
+
+.tarjeta {
+  background: var(--sup); border: 1px solid var(--borde);
+  border-radius: 9px; padding: 16px 18px 18px; margin-bottom: 16px;
+}
+.tarjeta h3 { margin: 0 0 2px; font-size: 15px; font-weight: 700; }
+.tarjeta .sub { margin: 0 0 14px; font-size: 12px; color: var(--tinta-3); }
+.cabTarjeta { display: flex; align-items: flex-start; gap: 12px; }
+.cabTarjeta .crece { flex: 1 1 auto; min-width: 0; }
+.par { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 800px) { .par { grid-template-columns: 1fr; } }
+
+/* ---------- fichas ---------- */
+.fichas { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.ficha { background: var(--sup); border: 1px solid var(--borde); border-radius: 9px; padding: 13px 15px; }
+.ficha .v { display: block; font-size: 26px; font-weight: 700; line-height: 1.15; }
+.ficha .e { display: block; font-size: 11px; color: var(--tinta-3); margin-top: 3px; }
+.ficha .n { display: block; font-size: 11px; color: var(--tinta-2); margin-top: 5px; }
+
+/* ---------- leyenda ---------- */
+.leyenda { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 12px; font-size: 12px; color: var(--tinta-2); }
+.leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+/* ---------- barras (HTML, para que el texto no se escale) ----------
+   La grilla vive en el contenedor y las filas usan display:contents, así
+   las cinco columnas son las mismas para todas: etiquetas, comienzos de
+   barra y valores quedan alineados. Con una grilla por fila, cada una
+   media sus columnas por separado y todo salía escalonado. */
+.barras {
+  display: grid;
+  grid-template-columns: minmax(60px, max-content) 1fr max-content;
+  column-gap: 10px; row-gap: 5px; align-items: center;
+}
+.barras.conSec { grid-template-columns: minmax(60px, max-content) 1fr max-content max-content; }
+.fila { display: contents; }
+.fila .et { font-size: 12px; color: var(--tinta-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fila .pista { display: flex; align-items: center; min-height: 30px; }
+.fila .bar { display: block; height: 22px; border-radius: 0 4px 4px 0; }
+.fila .val { font-size: 12px; font-weight: 700; color: var(--tinta-2); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: left; }
+.fila .val2 { font-size: 11px; color: var(--tinta-3); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.pista:hover .bar { filter: brightness(1.08); }
+/* Apiladas: 2px de superficie entre segmentos, sin bordes */
+.pista.apilada { display: flex; height: 22px; }
+.pista.apilada .seg { display: block; height: 100%; margin-right: 2px; cursor: pointer; }
+.pista.apilada .seg:last-child { margin-right: 0; border-radius: 0 4px 4px 0; }
+.pista.apilada .seg:hover { filter: brightness(1.1); }
+.pista.apilada .seg { display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.segTxt { font-style: normal; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; padding: 0 4px; }
+.comoSeLee {
+  background: var(--plano); border: 1px solid var(--borde); border-radius: 7px;
+  padding: 10px 13px; margin: 0 0 14px; font-size: 13px; color: var(--tinta-2); max-width: 72ch;
+}
+.comoSeLee strong { color: var(--tinta); }
+.selDenom { display: flex; gap: 8px; align-items: center; margin: 0 0 12px; flex-wrap: wrap; }
+.selDenom .etq { font-size: 12px; font-weight: 600; color: var(--tinta-2); }
+
+/* ---------- gráficos ---------- */
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+.gtxt { font: 11px system-ui, sans-serif; fill: var(--tinta-3); }
+.gtxt.val { fill: var(--tinta-2); font-weight: 600; font-variant-numeric: tabular-nums; }
+.gtxt.ident { fill: var(--tinta); font-weight: 600; font-size: 12px; }
+.marca-hit { fill: transparent; cursor: pointer; }
+
+/* ---------- tabla ---------- */
+table.datos { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.datos th, table.datos td { padding: 6px 8px; text-align: right; border-bottom: 1px solid var(--grilla); }
+table.datos th:first-child, table.datos td:first-child { text-align: left; }
+table.datos th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--tinta-3); font-weight: 700; }
+table.datos td { font-variant-numeric: tabular-nums; }
+.envTabla { overflow-x: auto; }
+
+/* ---------- tooltip ---------- */
+#tip {
+  position: fixed; pointer-events: none; z-index: 60;
+  background: var(--tinta); color: var(--sup);
+  padding: 7px 10px; border-radius: 6px; font-size: 12px; line-height: 1.45;
+  opacity: 0; transition: opacity .12s; max-width: 260px;
+}
+#tip b { font-variant-numeric: tabular-nums; }
+
+/* ---------- preguntas ---------- */
+textarea { width: 100%; font: inherit; padding: 10px 12px; border-radius: 6px;
+  border: 1px solid var(--borde); background: var(--sup); color: var(--tinta); resize: vertical; }
+.respuesta { white-space: pre-wrap; background: var(--plano); border: 1px solid var(--borde);
+  border-radius: 8px; padding: 14px 16px; margin-top: 14px; }
+.aviso { background: #fdf6e7; border: 1px solid #ecd9a9; color: #6d4d0c;
+  border-radius: 7px; padding: 11px 13px; font-size: 13px; }
+:root[data-theme="dark"] .aviso, :root:not([data-theme="light"]) .aviso { }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .aviso { background: #2a2413; border-color: #4d4224; color: #e5cf9a; }
+}
+:root[data-theme="dark"] .aviso { background: #2a2413; border-color: #4d4224; color: #e5cf9a; }
+
+.vacio { text-align: center; padding: 70px 20px; color: var(--tinta-3); }
+.vacio h2 { color: var(--tinta); font-size: 20px; margin: 0 0 8px; }
+
+/* ---------- película ---------- */
+.barraProgreso { height: 6px; background: var(--plano); border: 1px solid var(--borde);
+  border-radius: 99px; overflow: hidden; }
+.barraProgreso > div { height: 100%; background: var(--marca); width: 0; transition: width .2s; }
+.filaCarpeta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rutaCarpeta { font-size: 13px; color: var(--tinta-3); flex: 1; min-width: 180px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+button.chico { font-size: 12px; padding: 5px 11px; }
+#vLienzo { display: block; max-height: 62vh; object-fit: contain; }
+
+</style>
+</head>
+<body>
+
+<header class="barra">
+  <span class="logo">INCERTIS ANUBIS</span>
+  <span class="sub">Panel de análisis · v2.6</span>
+  <span class="der">
+    <button class="fantasma" id="btnTema" title="Cambiar tema">Tema</button>
+    <button class="fantasma" id="btnInforme" title="Descargar el informe en .pptx, que Keynote abre">Descargar informe</button>
+    <button class="primario" id="btnCargar">Cargar paquetes</button>
+  </span>
+</header>
+
+<input type="file" id="selCarpeta" webkitdirectory directory multiple class="oculto">
+<input type="file" id="selArchivos" multiple accept=".jsonl,.json" class="oculto">
+
+<div class="envoltorio">
+
+  <section id="vacio" class="vacio">
+    <h2>No hay datos cargados</h2>
+    <p>Las capturas que haga el recolector aparecen acá solas.<br>
+       Si todavía no corriste ninguna, empezá por el recolector.</p>
+    <div id="desdeNavegador" class="oculto" style="margin:26px 0 10px"></div>
+    <div id="desdeCarpeta" class="oculto" style="margin:22px 0 10px"></div>
+
+    <p style="margin-top:24px;font-size:13px;color:var(--tinta-3)">
+      <button id="btnGitHub">Cargar desde GitHub</button>
+      <button id="btnCargar2">o desde una carpeta</button>
+      <button id="btnArchivos">o archivos sueltos</button>
+    </p>
+    <div id="desdeGitHub" class="oculto" style="margin:22px auto 10px;max-width:560px;text-align:left"></div>
+  </section>
+
+  <div id="app" class="oculto">
+
+    <div class="filtros">
+      <label for="fMercado">Mercado</label>
+      <select id="fMercado"></select>
+      <label for="fPeriodo">Ejecución</label>
+      <select id="fPeriodo"></select>
+      <label for="fAlcance">Publicaciones</label>
+      <select id="fAlcance">
+        <option value="dentro">Sólo dentro del período</option>
+        <option value="todas">Todas las capturadas</option>
+      </select>
+      <span style="margin-left:auto;font-size:12px;color:var(--tinta-3)" id="resumenCarga"></span>
+    </div>
+
+    <div class="pestanas">
+      <button class="chip" data-vista="comparado" aria-pressed="true">Comparado</button>
+      <button class="chip" data-vista="propio" aria-pressed="false">Cuenta propia</button>
+      <button class="chip" data-vista="agenda" aria-pressed="false">Temas y agenda</button>
+      <button class="chip" data-vista="preguntas" aria-pressed="false">Preguntas</button>
+      <button class="chip" data-vista="pelicula" aria-pressed="false">Película</button>
+    </div>
+
+    <div id="vComparado"></div>
+    <div id="vPropio" class="oculto"></div>
+    <div id="vAgenda" class="oculto"></div>
+    <div id="vPreguntas" class="oculto"></div>
+    <div id="vPelicula" class="oculto"></div>
+  </div>
+</div>
+
+<div id="tip" role="status" aria-live="polite"></div>
+
+<script>
+// INCERTIS X · zip v0.1.0
+// Escritor ZIP mínimo sin compresión (método 0 · store), sin dependencias
+// externas. La CSP de MV3 impide cargar librerías desde una CDN, así que el
+// empaquetado se resuelve acá.
+//
+// API pública:
+//   IncertisZip.crear([{ nombre, datos }]) -> Promise<Blob>
+//   datos puede ser string (se codifica UTF-8) o Uint8Array / ArrayBuffer.
+
+(function (global) {
+  'use strict';
+
+  const VERSION = '0.1.0';
+
+  // --- CRC32 -------------------------------------------------------------
+  let TABLA = null;
+  function tablaCrc() {
+    if (TABLA) return TABLA;
+    TABLA = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      TABLA[n] = c >>> 0;
+    }
+    return TABLA;
+  }
+
+  function crc32(buf) {
+    const t = tablaCrc();
+    let c = 0xFFFFFFFF;
+    for (let i = 0; i < buf.length; i++) c = t[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  // --- helpers -----------------------------------------------------------
+  function aBytes(datos) {
+    if (typeof datos === 'string') return new TextEncoder().encode(datos);
+    if (datos instanceof Uint8Array) return datos;
+    if (datos instanceof ArrayBuffer) return new Uint8Array(datos);
+    throw new Error('Tipo de dato no soportado en el ZIP');
+  }
+
+  function fechaDos(d) {
+    const anio = Math.max(1980, d.getFullYear());
+    const fecha = ((anio - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    const hora = (d.getHours() << 11) | (d.getMinutes() << 5) | Math.floor(d.getSeconds() / 2);
+    return { fecha: fecha & 0xFFFF, hora: hora & 0xFFFF };
+  }
+
+  function escritor(tam) {
+    const buf = new Uint8Array(tam);
+    let p = 0;
+    return {
+      buf,
+      u16(v) { buf[p++] = v & 0xFF; buf[p++] = (v >>> 8) & 0xFF; },
+      u32(v) { buf[p++] = v & 0xFF; buf[p++] = (v >>> 8) & 0xFF; buf[p++] = (v >>> 16) & 0xFF; buf[p++] = (v >>> 24) & 0xFF; },
+      bytes(b) { buf.set(b, p); p += b.length; },
+      get pos() { return p; }
+    };
+  }
+
+  // --- API ---------------------------------------------------------------
+  async function crear(entradas) {
+    const ahora = new Date();
+    const { fecha, hora } = fechaDos(ahora);
+
+    const preparadas = entradas.map(e => {
+      const nombre = new TextEncoder().encode(e.nombre);
+      const datos = aBytes(e.datos);
+      return { nombre, datos, crc: crc32(datos) };
+    });
+
+    let tamLocal = 0;
+    let tamCentral = 0;
+    for (const e of preparadas) {
+      tamLocal += 30 + e.nombre.length + e.datos.length;
+      tamCentral += 46 + e.nombre.length;
+    }
+
+    const w = escritor(tamLocal + tamCentral + 22);
+    const offsets = [];
+
+    // Encabezados locales + datos
+    for (const e of preparadas) {
+      offsets.push(w.pos);
+      w.u32(0x04034b50);           // firma local
+      w.u16(20);                   // versión necesaria
+      w.u16(0x0800);               // bandera: nombres en UTF-8
+      w.u16(0);                    // método: store
+      w.u16(hora);
+      w.u16(fecha);
+      w.u32(e.crc);
+      w.u32(e.datos.length);       // comprimido
+      w.u32(e.datos.length);       // sin comprimir
+      w.u16(e.nombre.length);
+      w.u16(0);                    // extra
+      w.bytes(e.nombre);
+      w.bytes(e.datos);
+    }
+
+    // Directorio central
+    const inicioCentral = w.pos;
+    for (let i = 0; i < preparadas.length; i++) {
+      const e = preparadas[i];
+      w.u32(0x02014b50);           // firma central
+      w.u16(20);                   // versión que creó
+      w.u16(20);                   // versión necesaria
+      w.u16(0x0800);
+      w.u16(0);
+      w.u16(hora);
+      w.u16(fecha);
+      w.u32(e.crc);
+      w.u32(e.datos.length);
+      w.u32(e.datos.length);
+      w.u16(e.nombre.length);
+      w.u16(0);                    // extra
+      w.u16(0);                    // comentario
+      w.u16(0);                    // disco
+      w.u16(0);                    // atributos internos
+      w.u32(0);                    // atributos externos
+      w.u32(offsets[i]);
+      w.bytes(e.nombre);
+    }
+    const tamDirectorio = w.pos - inicioCentral;
+
+    // Fin del directorio central
+    w.u32(0x06054b50);
+    w.u16(0);
+    w.u16(0);
+    w.u16(preparadas.length);
+    w.u16(preparadas.length);
+    w.u32(tamDirectorio);
+    w.u32(inicioCentral);
+    w.u16(0);
+
+    return new Blob([w.buf], { type: 'application/zip' });
+  }
+
+  // Convierte un dataURL (base64) en Uint8Array.
+  function desdeDataUrl(dataUrl) {
+    const coma = dataUrl.indexOf(',');
+    const b64 = dataUrl.slice(coma + 1);
+    const bin = atob(b64);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  async function hashBytes(bytes) {
+    try {
+      const buf = await crypto.subtle.digest('SHA-256', bytes);
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch (e) {
+      return null;
+    }
+  }
+
+  global.IncertisZip = { VERSION, crear, desdeDataUrl, hashBytes, crc32 };
+})(self);
+
+</script>
+<script>
+// INCERTIS ANUBIS · pptx v1.0
+// Generador mínimo de PowerPoint (.pptx), que es lo que Keynote abre de forma
+// nativa. El formato .key es cerrado y no se puede escribir desde código.
+//
+// Un .pptx es un ZIP de XML, así que se arma con el mismo escritor ZIP del
+// recolector. Los gráficos van como figuras nativas —rectángulos y cuadros de
+// texto—, no como imágenes: así en Keynote se puede editar cada barra.
+//
+// API:
+//   const d = IncertisPptx.crear();
+//   d.portada('Título', 'Bajada');
+//   d.barras('Título', 'Subtítulo', [{et, v, vt, color}]);
+//   d.tabla('Título', 'Subtítulo', ['Col'], [['fila']]);
+//   d.texto('Título', ['párrafo', ...]);
+//   const blob = await d.blob();
+
+(function (global) {
+  'use strict';
+
+  // Unidades: EMU. 914400 por pulgada, 12700 por punto.
+  const PT = 12700;
+  const W = 12192000, H = 6858000;          // 16:9
+  const MARGEN = 640000;
+
+  const TINTA = '16233D', TINTA2 = '52514E', TINTA3 = '898781', GRIS = 'E1E0D9';
+  const FUENTE = 'Helvetica Neue';
+
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&apos;')
+      .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '');
+  }
+
+  function hex(c) {
+    const s = String(c || '').replace('#', '').trim();
+    return /^[0-9a-fA-F]{6}$/.test(s) ? s.toUpperCase() : '2A78D6';
+  }
+
+  // ---------------------------------------------------------------- figuras
+  let idFig = 1;
+
+  function cuadroTexto(x, y, cx, cy, corridas, opt) {
+    opt = opt || {};
+    const id = ++idFig;
+    const pPr = opt.espacio
+      ? `<a:pPr algn="${opt.algn || 'l'}"><a:spcBef><a:spcPts val="${opt.espacio}"/></a:spcBef></a:pPr>`
+      : `<a:pPr algn="${opt.algn || 'l'}"/>`;
+    const parrafos = (Array.isArray(corridas[0]) ? corridas : [corridas]).map(cs =>
+      `<a:p>` + pPr +
+      cs.map(c =>
+        `<a:r><a:rPr lang="es-AR" sz="${c.sz || 1400}"${c.b ? ' b="1"' : ''} dirty="0">` +
+        `<a:solidFill><a:srgbClr val="${hex(c.color || TINTA)}"/></a:solidFill>` +
+        `<a:latin typeface="${FUENTE}"/></a:rPr><a:t>${esc(c.t)}</a:t></a:r>`).join('') +
+      `</a:p>`).join('');
+
+    return `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="T${id}"/>` +
+      `<p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>` +
+      `<p:spPr><a:xfrm><a:off x="${Math.round(x)}" y="${Math.round(y)}"/>` +
+      `<a:ext cx="${Math.round(cx)}" cy="${Math.round(cy)}"/></a:xfrm>` +
+      `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr>` +
+      `<p:txBody><a:bodyPr wrap="square" anchor="${opt.anchor || 't'}" lIns="0" tIns="0" rIns="0" bIns="0"/>` +
+      `<a:lstStyle/>${parrafos}</p:txBody></p:sp>`;
+  }
+
+  function rect(x, y, cx, cy, color, opt) {
+    opt = opt || {};
+    const id = ++idFig;
+    return `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="R${id}"/>` +
+      `<p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>` +
+      `<a:xfrm><a:off x="${Math.round(x)}" y="${Math.round(y)}"/>` +
+      `<a:ext cx="${Math.round(Math.max(cx, 1))}" cy="${Math.round(cy)}"/></a:xfrm>` +
+      `<a:prstGeom prst="${opt.redondo ? 'roundRect' : 'rect'}"><a:avLst${opt.redondo ? '><a:gd name="adj" fmla="val 16000"/></a:avLst' : '/'}></a:prstGeom>` +
+      `<a:solidFill><a:srgbClr val="${hex(color)}"/></a:solidFill><a:ln><a:noFill/></a:ln></p:spPr>` +
+      `<p:txBody><a:bodyPr/><a:lstStyle/><a:p/></p:txBody></p:sp>`;
+  }
+
+  function tablaNativa(x, y, cx, cols, filas) {
+    const id = ++idFig;
+    const anchoCol = Math.floor(cx / cols.length);
+    const altoFila = 300000, altoCab = 340000;
+    const celda = (t, cab) =>
+      `<a:tc><a:txBody><a:bodyPr/><a:lstStyle/><a:p><a:pPr algn="l"/>` +
+      `<a:r><a:rPr lang="es-AR" sz="${cab ? 900 : 1000}"${cab ? ' b="1"' : ''} dirty="0">` +
+      `<a:solidFill><a:srgbClr val="${cab ? TINTA3 : TINTA}"/></a:solidFill>` +
+      `<a:latin typeface="${FUENTE}"/></a:rPr><a:t>${esc(t)}</a:t></a:r></a:p></a:txBody>` +
+      `<a:tcPr marL="72000" marR="72000" marT="36000" marB="36000" anchor="ctr">` +
+      `<a:lnB w="6350" cap="flat"><a:solidFill><a:srgbClr val="${GRIS}"/></a:solidFill></a:lnB>` +
+      `<a:noFill/></a:tcPr></a:tc>`;
+
+    const filasXml =
+      `<a:tr h="${altoCab}">${cols.map(c => celda(c, true)).join('')}</a:tr>` +
+      filas.map(f => `<a:tr h="${altoFila}">${f.map(v => celda(v, false)).join('')}</a:tr>`).join('');
+
+    return `<p:graphicFrame><p:nvGraphicFramePr>` +
+      `<p:cNvPr id="${id}" name="Tabla${id}"/><p:cNvGraphicFramePr><a:graphicFrameLocks noGrp="1"/></p:cNvGraphicFramePr><p:nvPr/>` +
+      `</p:nvGraphicFramePr><p:xfrm><a:off x="${Math.round(x)}" y="${Math.round(y)}"/>` +
+      `<a:ext cx="${Math.round(cx)}" cy="${altoCab + filas.length * altoFila}"/></p:xfrm>` +
+      `<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table">` +
+      `<a:tbl><a:tblPr firstRow="1"/><a:tblGrid>` +
+      cols.map(() => `<a:gridCol w="${anchoCol}"/>`).join('') +
+      `</a:tblGrid>${filasXml}</a:tbl></a:graphicData></a:graphic></p:graphicFrame>`;
+  }
+
+  function encabezado(titulo, sub) {
+    let s = cuadroTexto(MARGEN, 480000, W - MARGEN * 2, 400000,
+      [{ t: titulo, sz: 2400, b: true, color: TINTA }]);
+    if (sub) s += cuadroTexto(MARGEN, 900000, W - MARGEN * 2, 300000,
+      [{ t: sub, sz: 1200, color: TINTA3 }]);
+    return s;
+  }
+
+  // ---------------------------------------------------------------- deck
+  function crear(opt) {
+    opt = opt || {};
+    const slides = [];
+
+    const api = {
+      portada(titulo, sub, pie) {
+        let s = rect(0, 0, W, H, TINTA);
+        s += cuadroTexto(MARGEN, H * 0.34, W - MARGEN * 2, 900000,
+          [{ t: titulo, sz: 4000, b: true, color: 'FFFFFF' }]);
+        if (sub) s += cuadroTexto(MARGEN, H * 0.34 + 780000, W - MARGEN * 2, 500000,
+          [{ t: sub, sz: 1600, color: '9FADC6' }]);
+        if (pie) s += cuadroTexto(MARGEN, H - 900000, W - MARGEN * 2, 300000,
+          [{ t: pie, sz: 1000, color: '9FADC6' }]);
+        slides.push(s);
+        return api;
+      },
+
+      seccion(titulo, bajada) {
+        let s = cuadroTexto(MARGEN, H * 0.38, W - MARGEN * 2, 700000,
+          [{ t: titulo, sz: 3200, b: true, color: TINTA }]);
+        if (bajada) s += cuadroTexto(MARGEN, H * 0.38 + 620000, W * 0.6, 600000,
+          [{ t: bajada, sz: 1300, color: TINTA2 }]);
+        slides.push(s);
+        return api;
+      },
+
+      // Barras horizontales como figuras editables
+      barras(titulo, sub, items, nota) {
+        let s = encabezado(titulo, sub);
+        const yIni = 1500000, alto = 300000, hueco = 170000;
+        const xEt = MARGEN, anchoEt = 1900000;
+        const xBar = xEt + anchoEt + 160000;
+        const anchoMax = W - xBar - MARGEN - 1500000;
+        const max = Math.max(...items.map(i => i.v || 0), 1);
+
+        items.forEach((it, i) => {
+          const y = yIni + i * (alto + hueco);
+          s += cuadroTexto(xEt, y + 60000, anchoEt, alto,
+            [{ t: it.et, sz: 1100, color: TINTA2 }]);
+          const w = Math.max((it.v || 0) / max * anchoMax, 12000);
+          s += rect(xBar, y, w, alto, it.color);
+          s += cuadroTexto(xBar + w + 120000, y + 60000, 1400000, alto,
+            [{ t: it.vt !== undefined ? it.vt : String(it.v), sz: 1100, b: true, color: TINTA2 }]);
+        });
+
+        if (nota) s += cuadroTexto(MARGEN, H - 800000, W - MARGEN * 2, 400000,
+          [{ t: nota, sz: 900, color: TINTA3 }]);
+        slides.push(s);
+        return api;
+      },
+
+      tabla(titulo, sub, cols, filas, nota) {
+        let s = encabezado(titulo, sub);
+        s += tablaNativa(MARGEN, 1450000, W - MARGEN * 2, cols, filas);
+        if (nota) s += cuadroTexto(MARGEN, H - 800000, W - MARGEN * 2, 400000,
+          [{ t: nota, sz: 900, color: TINTA3 }]);
+        slides.push(s);
+        return api;
+      },
+
+      texto(titulo, parrafos) {
+        let s = encabezado(titulo, null);
+        const corridas = parrafos.map(p => [{ t: p, sz: 1300, color: TINTA2 }]);
+        s += cuadroTexto(MARGEN, 1450000, W - MARGEN * 2 - 1500000, H - 2400000,
+          corridas, { espacio: 900 });
+        slides.push(s);
+        return api;
+      },
+
+      get cantidad() { return slides.length; },
+
+      async blob() {
+        return armar(slides, opt.titulo || 'Informe Incertis Anubis');
+      }
+    };
+    return api;
+  }
+
+  // ---------------------------------------------------------------- empaque
+  const NS_P = 'http://schemas.openxmlformats.org/presentationml/2006/main';
+  const NS_A = 'http://schemas.openxmlformats.org/drawingml/2006/main';
+  const NS_R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+
+  function envolverSlide(cuerpo) {
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+      `<p:sld xmlns:a="${NS_A}" xmlns:r="${NS_R}" xmlns:p="${NS_P}"><p:cSld><p:spTree>` +
+      `<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>` +
+      `<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/>` +
+      `<a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>` +
+      cuerpo +
+      `</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
+  }
+
+  const TEMA = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<a:theme xmlns:a="${NS_A}" name="Incertis"><a:themeElements>
+<a:clrScheme name="Incertis"><a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1>
+<a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1>
+<a:dk2><a:srgbClr val="16233D"/></a:dk2><a:lt2><a:srgbClr val="F9F9F7"/></a:lt2>
+<a:accent1><a:srgbClr val="2A78D6"/></a:accent1><a:accent2><a:srgbClr val="EB6834"/></a:accent2>
+<a:accent3><a:srgbClr val="1BAF7A"/></a:accent3><a:accent4><a:srgbClr val="EDA100"/></a:accent4>
+<a:accent5><a:srgbClr val="4A3AA7"/></a:accent5><a:accent6><a:srgbClr val="E34948"/></a:accent6>
+<a:hlink><a:srgbClr val="2A78D6"/></a:hlink><a:folHlink><a:srgbClr val="4A3AA7"/></a:folHlink></a:clrScheme>
+<a:fontScheme name="Incertis"><a:majorFont><a:latin typeface="${FUENTE}"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont>
+<a:minorFont><a:latin typeface="${FUENTE}"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme>
+<a:fmtScheme name="Incertis">
+<a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:fillStyleLst>
+<a:lnStyleLst><a:ln w="6350"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln w="12700"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln w="19050"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln></a:lnStyleLst>
+<a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst>
+<a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:bgFillStyleLst>
+</a:fmtScheme></a:themeElements></a:theme>`;
+
+  const LAYOUT = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sldLayout xmlns:a="${NS_A}" xmlns:r="${NS_R}" xmlns:p="${NS_P}" type="blank" preserve="1">
+<p:cSld name="En blanco"><p:spTree>
+<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>
+</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>`;
+
+  const MASTER = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sldMaster xmlns:a="${NS_A}" xmlns:r="${NS_R}" xmlns:p="${NS_P}">
+<p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="FCFCFB"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>
+<p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>
+</p:spTree></p:cSld>
+<p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/>
+<p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst>
+</p:sldMaster>`;
+
+  async function armar(slides, titulo) {
+    const n = slides.length;
+    const ent = [];
+
+    const tipos = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
+<Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/>
+<Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/>
+<Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>
+<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+${slides.map((_, i) => `<Override PartName="/ppt/slides/slide${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`).join('\n')}
+</Types>`;
+    ent.push({ nombre: '[Content_Types].xml', datos: tipos });
+
+    ent.push({ nombre: '_rels/.rels', datos: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="${NS_R}/officeDocument" Target="ppt/presentation.xml"/>
+<Relationship Id="rId2" Type="${NS_R}/metadata/core-properties" Target="docProps/core.xml"/>
+<Relationship Id="rId3" Type="${NS_R}/extended-properties" Target="docProps/app.xml"/>
+</Relationships>` });
+
+    const ahora = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+    ent.push({ nombre: 'docProps/core.xml', datos: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<dc:title>${esc(titulo)}</dc:title><dc:creator>Incertis Anubis</dc:creator>
+<cp:lastModifiedBy>Incertis Anubis</cp:lastModifiedBy>
+<dcterms:created xsi:type="dcterms:W3CDTF">${ahora}</dcterms:created>
+<dcterms:modified xsi:type="dcterms:W3CDTF">${ahora}</dcterms:modified></cp:coreProperties>` });
+
+    ent.push({ nombre: 'docProps/app.xml', datos: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+<Application>Incertis Anubis</Application><Slides>${n}</Slides></Properties>` });
+
+    ent.push({ nombre: 'ppt/presentation.xml', datos: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:presentation xmlns:a="${NS_A}" xmlns:r="${NS_R}" xmlns:p="${NS_P}" saveSubsetFonts="1">
+<p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst>
+<p:sldIdLst>${slides.map((_, i) => `<p:sldId id="${256 + i}" r:id="rId${i + 2}"/>`).join('')}</p:sldIdLst>
+<p:sldSz cx="${W}" cy="${H}"/><p:notesSz cx="${H}" cy="${W}"/></p:presentation>` });
+
+    ent.push({ nombre: 'ppt/_rels/presentation.xml.rels', datos: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="${NS_R}/slideMaster" Target="slideMasters/slideMaster1.xml"/>
+${slides.map((_, i) => `<Relationship Id="rId${i + 2}" Type="${NS_R}/slide" Target="slides/slide${i + 1}.xml"/>`).join('\n')}
+<Relationship Id="rId${n + 2}" Type="${NS_R}/theme" Target="theme/theme1.xml"/>
+</Relationships>` });
+
+    ent.push({ nombre: 'ppt/slideMasters/slideMaster1.xml', datos: MASTER });
+    ent.push({ nombre: 'ppt/slideMasters/_rels/slideMaster1.xml.rels', datos: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="${NS_R}/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
+<Relationship Id="rId2" Type="${NS_R}/theme" Target="../theme/theme1.xml"/>
+</Relationships>` });
+
+    ent.push({ nombre: 'ppt/slideLayouts/slideLayout1.xml', datos: LAYOUT });
+    ent.push({ nombre: 'ppt/slideLayouts/_rels/slideLayout1.xml.rels', datos: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="${NS_R}/slideMaster" Target="../slideMasters/slideMaster1.xml"/>
+</Relationships>` });
+
+    ent.push({ nombre: 'ppt/theme/theme1.xml', datos: TEMA });
+
+    slides.forEach((cuerpo, i) => {
+      ent.push({ nombre: `ppt/slides/slide${i + 1}.xml`, datos: envolverSlide(cuerpo) });
+      ent.push({ nombre: `ppt/slides/_rels/slide${i + 1}.xml.rels`, datos: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="${NS_R}/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
+</Relationships>` });
+    });
+
+    const blob = await IncertisZip.crear(ent);
+    return new Blob([blob], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+  }
+
+  global.IncertisPptx = { crear, PT, W, H };
+})(self);
+
+</script>
+<script>
+// INCERTIS ANUBIS · almacen v1.0
+// Guarda las capturas dentro del navegador, en el almacenamiento de la propia
+// extensión. Es el camino por defecto: no hay carpeta que elegir, permiso que
+// caduque ni handle que se muera al actualizar la extensión.
+//
+// El disco queda como exportación opcional, para archivar o compartir.
+//
+// API:
+//   await Almacen.guardar({ id, nombre, resumen, manifest, posts, observaciones, eventos, evidencias })
+//   await Almacen.listar()            -> [{id, nombre, creada, publicaciones, evidencias, bytes}]
+//   await Almacen.leer(id)            -> { resumen, manifest, posts, observaciones, eventos }
+//   await Almacen.evidencias(id)      -> [{id, bytes}]
+//   await Almacen.borrar(id)
+//   await Almacen.espacio()           -> { usado, cuota }
+
+(function (global) {
+  'use strict';
+
+  const DB = 'anubis_datos', V = 1;
+  const EJEC = 'ejecuciones', EVID = 'evidencias';
+
+  function abrir() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open(DB, V);
+      r.onupgradeneeded = () => {
+        const db = r.result;
+        if (!db.objectStoreNames.contains(EJEC)) db.createObjectStore(EJEC, { keyPath: 'id' });
+        if (!db.objectStoreNames.contains(EVID)) {
+          const s = db.createObjectStore(EVID, { keyPath: 'clave' });
+          s.createIndex('porEjecucion', 'ejecucion', { unique: false });
+        }
+      };
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+  }
+
+  function correr(store, modo, fn) {
+    return abrir().then(db => new Promise((res, rej) => {
+      const t = db.transaction(store, modo);
+      const s = t.objectStore(store);
+      let salida;
+      try { salida = fn(s); } catch (e) { rej(e); return; }
+      t.oncomplete = () => res(salida && salida.__valor !== undefined ? salida.__valor : salida);
+      t.onerror = () => rej(t.error);
+      t.onabort = () => rej(t.error || new Error('transacción abortada'));
+    }));
+  }
+
+  function pedir(req) {
+    return new Promise((res, rej) => {
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => rej(req.error);
+    });
+  }
+
+  // La evidencia va en registros propios para poder borrarla sin perder los
+  // datos: es el 99% del peso y lo primero que conviene liberar.
+  async function guardar(paq) {
+    const texto = {
+      posts: paq.posts.map(p => JSON.stringify(p)).join('\n'),
+      observaciones: (paq.observaciones || []).map(o => JSON.stringify(o)).join('\n'),
+      eventos: (paq.eventos || []).map(e => JSON.stringify(e)).join('\n')
+    };
+    const bytesTexto = texto.posts.length + texto.observaciones.length + texto.eventos.length;
+    const bytesEvid = (paq.evidencias || []).reduce((s, e) => s + (e.bytes ? e.bytes.length : 0), 0);
+
+    await correr(EJEC, 'readwrite', s => s.put({
+      id: paq.id,
+      nombre: paq.nombre || paq.id,
+      creada: new Date().toISOString(),
+      resumen: paq.resumen || null,
+      manifest: paq.manifest || null,
+      texto,
+      publicaciones: paq.posts.length,
+      evidencias: (paq.evidencias || []).length,
+      bytes: bytesTexto + bytesEvid
+    }));
+
+    if (paq.evidencias && paq.evidencias.length) {
+      const db = await abrir();
+      // En lotes: una transacción con 400 escrituras puede quedarse sin memoria.
+      const LOTE = 50;
+      for (let i = 0; i < paq.evidencias.length; i += LOTE) {
+        const trozo = paq.evidencias.slice(i, i + LOTE);
+        await new Promise((res, rej) => {
+          const t = db.transaction(EVID, 'readwrite');
+          const s = t.objectStore(EVID);
+          for (const ev of trozo) {
+            s.put({ clave: paq.id + '/' + ev.id, ejecucion: paq.id, id: ev.id, bytes: ev.bytes });
+          }
+          t.oncomplete = res;
+          t.onerror = () => rej(t.error);
+        });
+      }
+    }
+    return { id: paq.id, publicaciones: paq.posts.length, evidencias: (paq.evidencias || []).length };
+  }
+
+  async function listar() {
+    const db = await abrir();
+    const todas = await pedir(db.transaction(EJEC, 'readonly').objectStore(EJEC).getAll());
+    return todas
+      .map(e => ({ id: e.id, nombre: e.nombre, creada: e.creada,
+                   publicaciones: e.publicaciones, evidencias: e.evidencias, bytes: e.bytes,
+                   periodo: (e.resumen && e.resumen.periodo) || (e.manifest && e.manifest.periodo) || null }))
+      .sort((a, b) => String(b.creada).localeCompare(String(a.creada)));
+  }
+
+  async function leer(id) {
+    const db = await abrir();
+    const e = await pedir(db.transaction(EJEC, 'readonly').objectStore(EJEC).get(id));
+    if (!e) return null;
+    const lineas = t => (t || '').split('\n').filter(Boolean).map(l => {
+      try { return JSON.parse(l); } catch (x) { return null; }
+    }).filter(Boolean);
+    return {
+      id: e.id, nombre: e.nombre, resumen: e.resumen, manifest: e.manifest,
+      posts: lineas(e.texto.posts),
+      observaciones: lineas(e.texto.observaciones),
+      eventos: lineas(e.texto.eventos)
+    };
+  }
+
+  async function evidencias(id) {
+    const db = await abrir();
+    const idx = db.transaction(EVID, 'readonly').objectStore(EVID).index('porEjecucion');
+    return await pedir(idx.getAll(IDBKeyRange.only(id)));
+  }
+
+  // Una sola evidencia por su clave. La película recorre cientos de capturas y
+  // no puede traerlas todas juntas: son decenas de megas.
+  async function evidenciaUna(ejecucion, id) {
+    const db = await abrir();
+    return await pedir(db.transaction(EVID, 'readonly').objectStore(EVID).get(ejecucion + '/' + id));
+  }
+
+  // Qué evidencias hay realmente guardadas, sin traer los bytes. La película
+  // necesita saberlo antes de empezar: un paquete cargado desde disco trae las
+  // referencias pero no las imágenes.
+  async function clavesEvidencia(ejecucion) {
+    const db = await abrir();
+    const claves = await pedir(db.transaction(EVID, 'readonly').objectStore(EVID)
+      .index('porEjecucion').getAllKeys(IDBKeyRange.only(ejecucion)));
+    return new Set(claves.map(k => String(k).slice(String(ejecucion).length + 1)));
+  }
+
+  async function borrar(id) {
+    await correr(EJEC, 'readwrite', s => s.delete(id));
+    const db = await abrir();
+    const claves = await pedir(db.transaction(EVID, 'readonly').objectStore(EVID)
+      .index('porEjecucion').getAllKeys(IDBKeyRange.only(id)));
+    if (claves.length) {
+      const LOTE = 200;
+      for (let i = 0; i < claves.length; i += LOTE) {
+        await new Promise(res => {
+          const t = db.transaction(EVID, 'readwrite');
+          const s = t.objectStore(EVID);
+          for (const k of claves.slice(i, i + LOTE)) s.delete(k);
+          t.oncomplete = res; t.onerror = res;
+        });
+      }
+    }
+  }
+
+  // Libera sólo la evidencia y conserva los datos: recupera casi todo el
+  // espacio sin perder el análisis.
+  async function borrarEvidencia(id) {
+    const db = await abrir();
+    const claves = await pedir(db.transaction(EVID, 'readonly').objectStore(EVID)
+      .index('porEjecucion').getAllKeys(IDBKeyRange.only(id)));
+    for (let i = 0; i < claves.length; i += 200) {
+      await new Promise(res => {
+        const t = db.transaction(EVID, 'readwrite');
+        const s = t.objectStore(EVID);
+        for (const k of claves.slice(i, i + 200)) s.delete(k);
+        t.oncomplete = res; t.onerror = res;
+      });
+    }
+    const e = await pedir(db.transaction(EJEC, 'readonly').objectStore(EJEC).get(id));
+    if (e) {
+      e.evidencias = 0;
+      e.bytes = e.texto.posts.length + e.texto.observaciones.length + e.texto.eventos.length;
+      await correr(EJEC, 'readwrite', s => s.put(e));
+    }
+  }
+
+  async function espacio() {
+    try {
+      const est = await navigator.storage.estimate();
+      return { usado: est.usage || 0, cuota: est.quota || 0 };
+    } catch (e) { return { usado: 0, cuota: 0 }; }
+  }
+
+  global.Almacen = { guardar, listar, leer, evidencias, evidenciaUna, clavesEvidencia,
+                     borrar, borrarEvidencia, espacio };
+})(self);
+
+</script>
+<script>
+// INCERTIS ANUBIS · github v1.0
+//
+// Cliente mínimo de la API de contenidos de GitHub. Lo usan los dos lados: el
+// recolector para publicar el día, el panel para leerlo.
+//
+// Por qué la API y no git: no hay git en un navegador. La API de contenidos
+// escribe un archivo por llamada y eso alcanza, porque cada día es un archivo
+// y nunca se reescribe lo viejo.
+//
+// Por qué los datos van en un repo privado y el panel en uno público: GitHub
+// Pages no publica desde repos privados en el plan gratuito, y aun pagando, el
+// sitio publicado sigue siendo público. Entonces el código se publica y los
+// datos se piden con el token de cada persona: el control de acceso lo hace
+// GitHub, que sabe quién está en el repo, y no una contraseña nuestra.
+
+(function (global) {
+  'use strict';
+
+  const RAIZ = 'datos';
+  const INDICE = RAIZ + '/indice.json';
+
+  // btoa sólo acepta latin-1: un titular con tildes o emojis lo rompe.
+  function aBase64(texto) {
+    const bytes = new TextEncoder().encode(texto);
+    let bin = '';
+    const LOTE = 0x8000;   // fromCharCode con medio millón de argumentos revienta la pila
+    for (let i = 0; i < bytes.length; i += LOTE) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + LOTE));
+    }
+    return btoa(bin);
+  }
+
+  function deBase64(b64) {
+    const bin = atob(String(b64).replace(/\s/g, ''));
+    const u = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(u);
+  }
+
+  function url(cfg, ruta) {
+    return `https://api.github.com/repos/${encodeURIComponent(cfg.duenio)}/${encodeURIComponent(cfg.repo)}` +
+           `/contents/${ruta.split('/').map(encodeURIComponent).join('/')}`;
+  }
+
+  function cabeceras(cfg, accept) {
+    return {
+      authorization: 'Bearer ' + cfg.token,
+      accept: accept || 'application/vnd.github+json',
+      'x-github-api-version': '2022-11-28'
+    };
+  }
+
+  // Los errores de GitHub se traducen acá y no en cada pantalla: son siempre
+  // los mismos cuatro y el mensaje crudo no le dice nada a nadie.
+  async function fallo(r) {
+    let detalle = '';
+    try { const j = await r.json(); detalle = j.message || ''; } catch (e) {}
+    if (r.status === 401) return new Error('El token no sirve o venció.');
+    if (r.status === 403) {
+      return new Error(/rate limit/i.test(detalle)
+        ? 'GitHub cortó por límite de peticiones. Esperá unos minutos.'
+        : 'El token no tiene permiso sobre ese repositorio.');
+    }
+    if (r.status === 404) {
+      return new Error('No encontrado. Puede ser que el repositorio no exista, ' +
+        'que el nombre esté mal escrito, o que el token no tenga acceso: ' +
+        'a un repo privado sin permiso GitHub responde lo mismo que si no existiera.');
+    }
+    if (r.status === 409 || r.status === 422) {
+      return new Error('El archivo cambió en GitHub mientras lo escribíamos. Probá de nuevo.');
+    }
+    return new Error(`GitHub respondió ${r.status}${detalle ? ': ' + detalle : ''}`);
+  }
+
+  // Devuelve { texto, sha } o null si el archivo no existe todavía.
+  //
+  // Se pide primero en JSON, que trae el sha —imprescindible para sobrescribir—
+  // y el contenido en base64. Arriba de 1 MB GitHub devuelve ese campo vacío,
+  // y ahí sí hace falta una segunda llamada en crudo: un día de cinco cuentas
+  // pasa ese tope sin esfuerzo.
+  async function leer(cfg, ruta) {
+    const r = await fetch(url(cfg, ruta), { headers: cabeceras(cfg) });
+    if (r.status === 404) return null;
+    if (!r.ok) throw await fallo(r);
+    const j = await r.json();
+    if (j.content && j.encoding === 'base64') return { texto: deBase64(j.content), sha: j.sha };
+
+    const crudo = await fetch(url(cfg, ruta), { headers: cabeceras(cfg, 'application/vnd.github.raw') });
+    if (!crudo.ok) throw await fallo(crudo);
+    return { texto: await crudo.text(), sha: j.sha };
+  }
+
+  // Sólo el sha, para sobrescribir sin bajar un archivo que no vamos a leer.
+  async function sha(cfg, ruta) {
+    const r = await fetch(url(cfg, ruta), { headers: cabeceras(cfg) });
+    if (r.status === 404) return null;
+    if (!r.ok) throw await fallo(r);
+    const j = await r.json();
+    return j.sha || null;
+  }
+
+  async function escribir(cfg, ruta, texto, mensaje) {
+    const previo = await sha(cfg, ruta).catch(() => null);
+    const cuerpo = {
+      message: mensaje || ('Anubis: ' + ruta),
+      content: aBase64(texto)
+    };
+    if (previo) cuerpo.sha = previo;
+    const r = await fetch(url(cfg, ruta), {
+      method: 'PUT', headers: { ...cabeceras(cfg), 'content-type': 'application/json' },
+      body: JSON.stringify(cuerpo)
+    });
+    if (!r.ok) throw await fallo(r);
+    const j = await r.json();
+    return { sha: j.content && j.content.sha, bytes: new TextEncoder().encode(texto).length };
+  }
+
+  // El índice existe para que el panel sepa qué días hay sin bajar nada: una
+  // sola petición chica en vez de listar el árbol y abrir archivo por archivo.
+  async function leerIndice(cfg) {
+    const r = await leer(cfg, INDICE);
+    if (!r) return { actualizado: null, capturas: [] };
+    try {
+      const j = JSON.parse(r.texto);
+      return { actualizado: j.actualizado || null, capturas: Array.isArray(j.capturas) ? j.capturas : [] };
+    } catch (e) {
+      throw new Error('El índice del repositorio está corrupto: ' + e.message);
+    }
+  }
+
+  // Alta o reemplazo por nombre de archivo: correr dos veces el mismo día
+  // actualiza la entrada en vez de duplicarla.
+  async function anotarEnIndice(cfg, entrada) {
+    const idx = await leerIndice(cfg);
+    const otras = idx.capturas.filter(c => c.archivo !== entrada.archivo);
+    const capturas = otras.concat([entrada]).sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
+    const texto = JSON.stringify({ actualizado: new Date().toISOString(), capturas }, null, 2);
+    await escribir(cfg, INDICE, texto, `Anubis: índice (${capturas.length} capturas)`);
+    return capturas.length;
+  }
+
+  async function publicarCaptura(cfg, { archivo, texto, entrada, alProgreso }) {
+    const p = alProgreso || (() => {});
+    p(`Subiendo ${archivo}…`);
+    const r = await escribir(cfg, RAIZ + '/' + archivo, texto,
+      `Anubis: captura ${entrada.fecha} · ${entrada.mercado}`);
+    p('Actualizando el índice…');
+    const total = await anotarEnIndice(cfg, { ...entrada, archivo, subido: new Date().toISOString(), bytes: r.bytes });
+    return { bytes: r.bytes, capturas: total };
+  }
+
+  async function bajarCaptura(cfg, archivo) {
+    const r = await leer(cfg, RAIZ + '/' + archivo);
+    if (!r) throw new Error('El archivo ' + archivo + ' ya no está en el repositorio.');
+    return r.texto;
+  }
+
+  // Comprobación previa: dice si el token entra y si puede escribir, antes de
+  // que el usuario descubra el problema al final de una captura de veinte
+  // minutos.
+  async function probar(cfg) {
+    const r = await fetch(`https://api.github.com/repos/${encodeURIComponent(cfg.duenio)}/${encodeURIComponent(cfg.repo)}`,
+      { headers: cabeceras(cfg) });
+    if (!r.ok) throw await fallo(r);
+    const j = await r.json();
+    return {
+      nombre: j.full_name,
+      privado: !!j.private,
+      escribe: !!(j.permissions && (j.permissions.push || j.permissions.admin)),
+      rama: j.default_branch
+    };
+  }
+
+  global.GitHub = { leer, sha, escribir, leerIndice, anotarEnIndice, publicarCaptura, bajarCaptura, probar,
+                    aBase64, deBase64, RAIZ, INDICE };
+})(self);
+
+</script>
+<script>
+'use strict';
+const VERSION = '2.6';
+console.log('[ANUBIS] panel de análisis v' + VERSION);
+
+// ====================================================================
+// Estado
+// ====================================================================
+const D = {
+  posts: [],          // todas las publicaciones de todas las ejecuciones
+  ejecuciones: [],    // {id, periodo, mercados, cuentas}
+  vista: 'comparado'
+};
+
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+
+const SERIES = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)'];
+
+// Color de marca de la cuenta de referencia. Cada juego se validó completo
+// (rojo con azul/aqua/amarillo; naranja con azul/aqua/violeta): las dos
+// referencias nunca comparten gráfico, porque están en mercados distintos.
+const MARCAS = {
+  clarincom: { ref: 'var(--rojo)', pool: ['var(--s1)', 'var(--s3)', 'var(--s4)', 'var(--violeta)', 'var(--s2)'] },
+  portalmvd: { ref: 'var(--s2)',   pool: ['var(--s1)', 'var(--s3)', 'var(--s4)', 'var(--violeta)', 'var(--rojo)'] }
+};
+const POOL_POR_DEFECTO = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--violeta)', 'var(--rojo)'];
+
+// Las cuatro señales de la audiencia, ordenadas por lo que le cuesta a alguien
+// producirlas. Ver es casi gratis; compartir pone el nombre propio detrás.
+const SENALES = [
+  { k: 'likes',      n: 'Me gusta',  d: 'un toque',                        c: 'var(--o1)', claro: true },
+  { k: 'guardados',  n: 'Guardados', d: 'intención de volver',             c: 'var(--o2)', claro: true },
+  { k: 'respuestas', n: 'Respuestas', d: 'escribir algo',                  c: 'var(--o3)' },
+  { k: 'reposts',    n: 'Compartidos', d: 'poner el nombre propio detrás', c: 'var(--o4)' }
+];
+
+// Las tres formas de contar. Cada una responde una pregunta distinta y da
+// un ganador distinto, así que el denominador se elige, no se esconde.
+const DENOMINADORES = {
+  post:  { n: 'Por publicación', suf: 'Tot', div: a => a.n,
+           ex: 'Neutraliza el volumen: publicar más deja de ser una ventaja. Responde qué consigue cada pieza.' },
+  bruto: { n: 'Cantidad total',  suf: 'Tot', div: () => 1,
+           ex: 'La suma del día. Premia a quien más publica y a quien más audiencia tiene.' },
+  vista: { n: 'Por mil vistas',  suf: 'Tot', div: a => a.vistasTot / 1000,
+           ex: 'Neutraliza también el alcance. Favorece a las cuentas chicas con público comprometido.' }
+};
+let denomActual = 'post';
+
+// ====================================================================
+// Utilidades
+// ====================================================================
+const nf = new Intl.NumberFormat('es-AR');
+const fmt = n => (n === null || n === undefined || !isFinite(n)) ? '—' : nf.format(Math.round(n));
+const fmt1 = n => (n === null || n === undefined || !isFinite(n)) ? '—' : n.toFixed(1).replace('.', ',');
+
+function metrica(p, k) {
+  const m = p.metricas && p.metricas[k];
+  return (m && m.estado === 'visible' && typeof m.valor === 'number') ? m.valor : null;
+}
+function mediana(a) {
+  const v = a.filter(x => x !== null && isFinite(x)).sort((x, y) => x - y);
+  if (!v.length) return null;
+  const m = v.length >> 1;
+  return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+}
+function suma(a) { return a.reduce((s, x) => s + (x || 0), 0); }
+
+function horaLocal(p) {
+  if (!p.publicado_iso) return null;
+  const d = new Date(p.publicado_iso);
+  if (isNaN(d)) return null;
+  // Hora de Buenos Aires / Montevideo (UTC-3)
+  return new Date(d.getTime() - 3 * 3600 * 1000).getUTCHours();
+}
+
+function escapar(s) {
+  return String(s === null || s === undefined ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function guardarLocal(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function leerLocal(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+// ====================================================================
+// Carga de paquetes
+// ====================================================================
+function leerArchivo(f) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = () => rej(new Error('No se pudo leer ' + f.name));
+    r.readAsText(f);
+  });
+}
+
+// Las capturas de pantalla de un paquete cargado desde disco. La versión
+// anterior las descartaba: los posts quedaban con la referencia a una imagen
+// que no estaba en ninguna parte, y la película salía en blanco.
+const EVIDENCIA_EN_DISCO = new Map();   // evidencia_id -> File
+
+async function cargarArchivos(lista) {
+  const archivos = Array.from(lista);
+  const porCarpeta = new Map();
+
+  for (const f of archivos) {
+    const ruta = f.webkitRelativePath || f.name;
+    const base = ruta.split('/').slice(0, -1).join('/') || '(sueltos)';
+    const nombre = f.name;
+    if (/\.(jpe?g|png|webp)$/i.test(nombre) && /screenshots\//i.test(ruta)) {
+      EVIDENCIA_EN_DISCO.set(nombre.replace(/\.[^.]+$/, ''), f);
+      continue;
+    }
+    // Dos formas conviven. Un paquete completo trae posts.jsonl dentro de su
+    // carpeta; la carpeta de datos diaria trae un .jsonl por día, cada uno con
+    // su propio nombre. Se agrupa por carpeta en el primer caso y por archivo
+    // en el segundo, y cada grupo entra igual por procesarPaquete.
+    if (nombre === 'posts.jsonl' || nombre === 'summary.json' || nombre === 'manifest.json') {
+      if (!porCarpeta.has(base)) porCarpeta.set(base, {});
+      porCarpeta.get(base)[nombre] = f;
+      continue;
+    }
+    if (/\.jsonl$/i.test(nombre)) {
+      const clave = base + '/' + nombre;
+      if (!porCarpeta.has(clave)) porCarpeta.set(clave, {});
+      porCarpeta.get(clave)['posts.jsonl'] = f;
+      porCarpeta.get(clave).__id = nombre.replace(/\.jsonl$/i, '');
+      continue;
+    }
+    if (/\.json$/i.test(nombre)) {
+      // El resumen que acompaña a un .jsonl diario comparte el nombre.
+      const clave = base + '/' + nombre.replace(/\.json$/i, '.jsonl');
+      if (!porCarpeta.has(clave)) porCarpeta.set(clave, {});
+      porCarpeta.get(clave)['summary.json'] = f;
+    }
+  }
+
+  // Un .json suelto sin su .jsonl no es una captura.
+  for (const [k, g] of [...porCarpeta]) if (!g['posts.jsonl']) porCarpeta.delete(k);
+
+  if (!porCarpeta.size) {
+    alert('No encontré ningún archivo .jsonl. Elegí la carpeta de datos (CAPTURAS ANUBIS X) ' +
+          'o la carpeta descomprimida de una captura.');
+    return;
+  }
+
+  let nuevas = 0, nuevosPosts = 0;
+  for (const [, g] of porCarpeta) {
+    const r = await procesarPaquete(g);
+    if (r) { nuevas++; nuevosPosts += r; }
+  }
+
+  if (!nuevas) { alert('Esos paquetes ya estaban cargados.'); return; }
+  console.log(`[ANUBIS] ${nuevas} ejecución(es), ${nuevosPosts} publicaciones`);
+  prepararFiltros();
+  render();
+}
+
+// Toma {posts.jsonl: File, summary.json: File, ...} y lo incorpora al estado.
+// Devuelve la cantidad de publicaciones sumadas, o null si no sirve o ya estaba.
+async function procesarPaquete(g) {
+  {
+    if (!g['posts.jsonl']) return null;
+
+    let resumen = null, manif = null;
+    try { if (g['summary.json']) resumen = JSON.parse(await leerArchivo(g['summary.json'])); } catch (e) {}
+    try { if (g['manifest.json']) manif = JSON.parse(await leerArchivo(g['manifest.json'])); } catch (e) {}
+
+    const texto = await leerArchivo(g['posts.jsonl']);
+    const posts = [];
+    for (const linea of texto.split('\n')) {
+      const t = linea.trim();
+      if (!t) continue;
+      try { posts.push(JSON.parse(t)); } catch (e) {}
+    }
+    if (!posts.length) return null;
+
+    // Para un archivo diario el nombre ES la identidad: dos días distintos no
+    // se pueden mezclar bajo el mismo ejecucion_id aunque vengan de la misma
+    // configuración.
+    const id = g.__id ||
+               (resumen && resumen.ejecucion_id) || (manif && manif.ejecucion_id) ||
+               (posts[0] && posts[0].ejecucion_id) || ('carga-' + (D.ejecuciones.length + 1));
+
+    if (D.ejecuciones.some(e => e.id === id)) return null; // ya cargada
+
+    // Los paquetes anteriores a v0.2.0 no traen mercado ni rol.
+    const mercadosDeclarados = (resumen && resumen.mercados) || (manif && manif.mercados) || null;
+    for (const p of posts) {
+      p.ejecucion_id = g.__id || p.ejecucion_id || id;
+      if (!p.mercado) p.mercado = deducirMercado(p.cuenta_monitoreada, mercadosDeclarados);
+      if (!p.rol) p.rol = deducirRol(p.cuenta_monitoreada, mercadosDeclarados);
+    }
+
+    D.ejecuciones.push({
+      id,
+      periodo: (resumen && resumen.periodo) || (manif && manif.periodo) || null,
+      resumen
+    });
+    D.posts.push(...posts);
+    return posts.length;
+  }
+}
+
+// ====================================================================
+// Lectura directa de la carpeta de trabajo
+// ====================================================================
+// La misma carpeta que eligió el recolector, guardada en IndexedDB. Así el
+// panel abre las capturas sin que haya que ir a buscarlas con el selector.
+
+const DB_NOMBRE = 'anubis', DB_ALMACEN = 'handles', DB_CLAVE = 'carpeta';
+
+function abrirDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(DB_NOMBRE, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(DB_ALMACEN);
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+
+async function leerHandle() {
+  try {
+    const db = await abrirDB();
+    return await new Promise((res, rej) => {
+      const t = db.transaction(DB_ALMACEN, 'readonly');
+      const q = t.objectStore(DB_ALMACEN).get(DB_CLAVE);
+      q.onsuccess = () => res(q.result || null);
+      q.onerror = () => rej(q.error);
+    });
+  } catch (e) { return null; }
+}
+
+async function listarCapturas(dir) {
+  const salida = [];
+  for await (const [nombre, h] of dir.entries()) {
+    if (h.kind !== 'directory') continue;
+    try {
+      await h.getFileHandle('posts.jsonl');   // sólo carpetas de captura
+      salida.push({ nombre, handle: h });
+    } catch (e) { /* no es una captura */ }
+  }
+  salida.sort((a, b) => b.nombre.localeCompare(a.nombre));  // más reciente primero
+  return salida;
+}
+
+async function archivosDe(dirHandle) {
+  const g = {};
+  for (const n of ['posts.jsonl', 'summary.json', 'manifest.json']) {
+    try { g[n] = await (await dirHandle.getFileHandle(n)).getFile(); } catch (e) {}
+  }
+  // Las capturas de pantalla, para que la película las encuentre.
+  try {
+    const dir = await dirHandle.getDirectoryHandle('screenshots');
+    for await (const [nombre, h] of dir.entries()) {
+      if (h.kind === 'file' && /\.(jpe?g|png|webp)$/i.test(nombre)) {
+        EVIDENCIA_EN_DISCO.set(nombre.replace(/\.[^.]+$/, ''), await h.getFile());
+      }
+    }
+  } catch (e) { /* el paquete puede no tener evidencia */ }
+  return g;
+}
+
+// ====================================================================
+// GitHub: el archivo compartido del equipo
+// ====================================================================
+// Los datos viven en un repositorio privado y cada persona los lee con su
+// propio token. El control de acceso lo hace GitHub —sabe quién está en el
+// repositorio— y no una contraseña dentro de esta página.
+
+function configGh() {
+  return {
+    duenio: leerLocal('anubis_gh_duenio') || '',
+    repo: leerLocal('anubis_gh_repo') || '',
+    token: leerLocal('anubis_gh_token') || ''
+  };
+}
+
+function mostrarGitHub() {
+  const cont = document.getElementById('desdeGitHub');
+  const c = configGh();
+  cont.innerHTML = `
+    <div class="tarjeta" style="text-align:left">
+      <div class="cabTarjeta"><div class="crece">
+        <h3>Archivo del equipo</h3>
+        <p class="sub">Repositorio privado con los datos de cada día</p>
+      </div></div>
+      <div class="par" style="gap:12px">
+        <label class="explica" style="display:block">Dueño
+          <input type="text" id="ghD" value="${escapar(c.duenio)}" placeholder="juliangallo" style="width:100%;margin-top:6px"></label>
+        <label class="explica" style="display:block">Repositorio
+          <input type="text" id="ghR" value="${escapar(c.repo)}" placeholder="anubis-datos" style="width:100%;margin-top:6px"></label>
+      </div>
+      <label class="explica" style="display:block;margin-top:10px">Tu token de lectura
+        <em>queda sólo en este navegador</em>
+        <input type="password" id="ghT" value="${escapar(c.token)}" placeholder="github_pat_…" style="width:100%;margin-top:6px"></label>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap">
+        <button class="primario" id="ghListar" style="background:var(--marca);color:#fff">Ver qué hay</button>
+        <span id="ghMsg" style="font-size:12px;color:var(--tinta-3)"></span>
+      </div>
+      <div id="ghLista"></div>
+    </div>`;
+  cont.classList.remove('oculto');
+  document.getElementById('ghListar').addEventListener('click', listarDeGitHub);
+}
+
+function guardarConfigGh() {
+  guardarLocal('anubis_gh_duenio', $('#ghD').value.trim());
+  guardarLocal('anubis_gh_repo', $('#ghR').value.trim());
+  guardarLocal('anubis_gh_token', $('#ghT').value.trim());
+  return { duenio: $('#ghD').value.trim(), repo: $('#ghR').value.trim(), token: $('#ghT').value.trim() };
+}
+
+async function listarDeGitHub() {
+  const cfg = guardarConfigGh();
+  const msg = $('#ghMsg'), lista = $('#ghLista');
+  if (!cfg.duenio || !cfg.repo || !cfg.token) { msg.textContent = 'Completá los tres campos.'; return; }
+  msg.textContent = 'Consultando…';
+  lista.innerHTML = '';
+  try {
+    const idx = await GitHub.leerIndice(cfg);
+    if (!idx.capturas.length) {
+      msg.textContent = 'El repositorio está vacío: todavía no se publicó ninguna captura.';
+      return;
+    }
+    msg.textContent = `${idx.capturas.length} captura(s) en el repositorio.`;
+    lista.innerHTML = `
+      <div style="display:flex;gap:10px;align-items:center;margin:14px 0 8px">
+        <button id="ghTodas">Marcar todas</button>
+        <button id="ghNinguna">Ninguna</button>
+      </div>
+      <div id="ghItems" style="display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto">
+        ${idx.capturas.map((c, i) => `
+          <label style="display:flex;gap:9px;align-items:center;border:1px solid var(--borde);
+            border-radius:6px;padding:8px 11px;cursor:pointer">
+            <input type="checkbox" data-i="${i}" style="width:auto">
+            <span style="flex:1">${escapar(c.fecha)} · ${escapar(c.mercado || '')}
+              <span style="color:var(--tinta-3);font-size:12px"> · ${fmt(c.publicaciones)} publicaciones
+              · ${escapar((c.cuentas || []).map(h => '@' + h).join(', '))}</span></span>
+          </label>`).join('')}
+      </div>
+      <button class="primario" id="ghCargar" style="background:var(--marca);color:#fff;margin-top:12px">Cargar las marcadas</button>`;
+
+    $('#ghTodas').addEventListener('click', () =>
+      $$('#ghItems input').forEach(i => { i.checked = true; }));
+    $('#ghNinguna').addEventListener('click', () =>
+      $$('#ghItems input').forEach(i => { i.checked = false; }));
+    $('#ghCargar').addEventListener('click', () => bajarDeGitHub(cfg, idx.capturas));
+  } catch (e) {
+    msg.textContent = e.message;
+  }
+}
+
+async function bajarDeGitHub(cfg, capturas) {
+  const elegidas = $$('#ghItems input:checked').map(i => capturas[parseInt(i.dataset.i, 10)]);
+  const msg = $('#ghMsg');
+  if (!elegidas.length) { msg.textContent = 'No marcaste ninguna.'; return; }
+  const btn = $('#ghCargar');
+  btn.disabled = true;
+  let n = 0, p = 0;
+  try {
+    for (const c of elegidas) {
+      msg.textContent = `Bajando ${c.archivo}… (${n + 1} de ${elegidas.length})`;
+      if (D.ejecuciones.some(e => e.id === c.archivo)) { n++; continue; }
+      const texto = await GitHub.bajarCaptura(cfg, c.archivo);
+      const posts = [];
+      for (const linea of texto.split('\n')) {
+        const t = linea.trim();
+        if (!t) continue;
+        try { posts.push(JSON.parse(t)); } catch (e) { /* línea rota: se saltea */ }
+      }
+      for (const q of posts) {
+        q.ejecucion_id = c.archivo;   // la unidad de tiempo pasa a ser el archivo del día
+        if (!q.mercado) q.mercado = c.mercado || 'Sin mercado';
+      }
+      D.ejecuciones.push({ id: c.archivo, periodo: c.periodo || null,
+        resumen: { periodo: c.periodo || null } });
+      D.posts.push(...posts);
+      n++; p += posts.length;
+    }
+    if (!p) { msg.textContent = 'Esas capturas ya estaban cargadas.'; return; }
+    msg.textContent = `${n} captura(s), ${fmt(p)} publicaciones.`;
+    console.log(`[ANUBIS] GitHub: ${n} captura(s), ${p} publicaciones`);
+    if (typeof DISPONIBLES !== 'undefined') DISPONIBLES.listo = false;
+    prepararFiltros();
+    render();
+  } catch (e) {
+    msg.textContent = 'Falló: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// El camino por defecto: las capturas viven en el navegador y aparecen solas.
+// Sin permisos, sin elegir carpeta, sin diálogos.
+async function prepararDelNavegador() {
+  const cont = document.getElementById('desdeNavegador');
+  if (!cont || typeof Almacen === 'undefined') return;
+
+  let lista = [];
+  try { lista = await Almacen.listar(); } catch (e) { return; }
+  if (!lista.length) return;
+
+  const total = lista.reduce((s, x) => s + (x.bytes || 0), 0);
+  cont.innerHTML = `
+    <p style="margin:0 0 12px;font-size:13px;color:var(--tinta-2)">
+      <strong>${lista.length} captura(s) guardada(s)</strong> · ${(total / 1048576).toFixed(0)} MB</p>
+    <div id="listaNav" style="display:flex;flex-direction:column;gap:6px;max-width:560px;margin:0 auto 14px">
+      ${lista.map((c, i) => `<label style="display:flex;gap:9px;align-items:center;text-align:left;
+        border:1px solid var(--borde);border-radius:6px;padding:9px 12px;cursor:pointer">
+        <input type="checkbox" data-i="${i}" ${i === 0 ? 'checked' : ''} style="width:auto">
+        <span style="flex:1">${escapar(c.nombre)}
+          <span style="color:var(--tinta-3);font-size:12px"> · ${fmt(c.publicaciones)} publicaciones</span></span>
+        ${c.evidencias ? `<button class="chip" data-aliviar="${escapar(c.id)}"
+          title="Borrar sólo las ${c.evidencias} capturas de pantalla y conservar los datos"
+          style="padding:2px 9px;font-size:11px">Liberar</button>` : ''}
+        <button class="chip" data-borrar="${escapar(c.id)}" title="Borrar esta captura entera"
+          style="padding:2px 9px;font-size:11px">Borrar</button>
+      </label>`).join('')}
+    </div>
+    <button class="primario" id="btnCargarNav" style="background:var(--marca);color:#fff">Cargar las marcadas</button>`;
+  cont.classList.remove('oculto');
+
+  document.getElementById('btnCargarNav').addEventListener('click', async () => {
+    const elegidas = Array.from(document.querySelectorAll('#listaNav input:checked'))
+      .map(i => lista[parseInt(i.dataset.i, 10)]);
+    if (!elegidas.length) return;
+    let n = 0, p = 0;
+    for (const c of elegidas) {
+      const paq = await Almacen.leer(c.id);
+      if (!paq || D.ejecuciones.some(e => e.id === paq.id)) continue;
+      const mercados = (paq.resumen && paq.resumen.mercados) || (paq.manifest && paq.manifest.mercados) || null;
+      for (const q of paq.posts) {
+        q.ejecucion_id = q.ejecucion_id || paq.id;
+        if (!q.mercado) q.mercado = deducirMercado(q.cuenta_monitoreada, mercados);
+        if (!q.rol) q.rol = deducirRol(q.cuenta_monitoreada, mercados);
+      }
+      D.ejecuciones.push({ id: paq.id, periodo: (paq.resumen && paq.resumen.periodo) || null, resumen: paq.resumen });
+      D.posts.push(...paq.posts);
+      n++; p += paq.posts.length;
+    }
+    if (!n) { alert('Esas capturas ya estaban cargadas.'); return; }
+    console.log(`[ANUBIS] ${n} captura(s) del navegador, ${p} publicaciones`);
+    prepararFiltros();
+    render();
+  });
+
+  cont.addEventListener('click', async ev => {
+    const liberar = ev.target.closest('[data-aliviar]');
+    if (liberar) {
+      ev.preventDefault();
+      if (!confirm('Se borran las capturas de pantalla y se conservan los datos.\n\n' +
+                   'Recupera casi todo el espacio; el análisis sigue funcionando igual, ' +
+                   'pero perdés la evidencia visual de esas publicaciones.')) return;
+      await Almacen.borrarEvidencia(liberar.dataset.aliviar);
+      prepararDelNavegador();
+      return;
+    }
+    const b = ev.target.closest('[data-borrar]');
+    if (!b) return;
+    ev.preventDefault();
+    if (!confirm('¿Borrar esta captura entera del navegador? No se puede deshacer.')) return;
+    await Almacen.borrar(b.dataset.borrar);
+    prepararDelNavegador();
+  });
+}
+
+async function prepararCarpeta() {
+  const h = await leerHandle();
+  if (!h || !h.queryPermission) return;
+  D.carpeta = h;
+
+  const permiso = await h.queryPermission({ mode: 'read' });
+  const cont = document.getElementById('desdeCarpeta');
+  if (!cont) return;
+
+  cont.innerHTML = `<p style="margin:0 0 10px;font-size:13px;color:var(--tinta-2)">
+      Carpeta de trabajo: <strong>${escapar(h.name)}</strong></p>
+    <button class="primario" id="btnAbrirCarpeta" style="background:var(--marca);color:#fff">
+      ${permiso === 'granted' ? 'Ver capturas guardadas' : 'Dar acceso y ver capturas'}</button>`;
+  cont.classList.remove('oculto');
+
+  document.getElementById('btnAbrirCarpeta').addEventListener('click', async () => {
+    if ((await h.queryPermission({ mode: 'read' })) !== 'granted') {
+      if ((await h.requestPermission({ mode: 'read' })) !== 'granted') return;
+    }
+    const capturas = await listarCapturas(h);
+    if (!capturas.length) { alert('Todavía no hay capturas en ' + h.name + '.'); return; }
+    mostrarListaCapturas(capturas);
+  });
+}
+
+function mostrarListaCapturas(capturas) {
+  const cont = document.getElementById('desdeCarpeta');
+  cont.innerHTML = `<p style="margin:0 0 10px;font-size:13px;color:var(--tinta-2)">
+      ${capturas.length} captura(s) en <strong>${escapar(D.carpeta.name)}</strong> — elegí cuáles cargar</p>
+    <div id="listaCapturas" style="display:flex;flex-direction:column;gap:6px;max-width:520px;margin:0 auto 12px">
+      ${capturas.map((c, i) => `<label style="display:flex;gap:9px;align-items:center;text-align:left;
+        border:1px solid var(--borde);border-radius:6px;padding:8px 11px;cursor:pointer">
+        <input type="checkbox" data-i="${i}" ${i === 0 ? 'checked' : ''} style="width:auto">
+        <span>${escapar(c.nombre)}</span></label>`).join('')}
+    </div>
+    <button class="primario" id="btnCargarSel" style="background:var(--marca);color:#fff">Cargar las marcadas</button>`;
+
+  document.getElementById('btnCargarSel').addEventListener('click', async () => {
+    const elegidas = Array.from(document.querySelectorAll('#listaCapturas input:checked'))
+      .map(i => capturas[parseInt(i.dataset.i, 10)]);
+    if (!elegidas.length) return;
+    let n = 0, p = 0;
+    for (const c of elegidas) {
+      const r = await procesarPaquete(await archivosDe(c.handle));
+      if (r) { n++; p += r; }
+    }
+    if (!n) { alert('Esas capturas ya estaban cargadas.'); return; }
+    console.log(`[ANUBIS] ${n} captura(s) desde la carpeta, ${p} publicaciones`);
+    prepararFiltros();
+    render();
+  });
+}
+
+function deducirMercado(handle, mercados) {
+  if (mercados) {
+    for (const m of mercados) {
+      const todas = [m.propia].concat(m.competencia || []);
+      if (todas.some(h => h && h.toLowerCase() === String(handle).toLowerCase())) return m.nombre;
+    }
+  }
+  return 'Sin mercado';
+}
+function deducirRol(handle, mercados) {
+  if (mercados) {
+    for (const m of mercados) {
+      if (m.propia && m.propia.toLowerCase() === String(handle).toLowerCase()) return 'propia';
+    }
+  }
+  return 'competencia';
+}
+
+// ====================================================================
+// Filtros y selección
+// ====================================================================
+function prepararFiltros() {
+  const mercados = [...new Set(D.posts.map(p => p.mercado))].sort();
+  const selM = $('#fMercado');
+  const previo = selM.value;
+  selM.innerHTML = mercados.map(m => `<option value="${escapar(m)}">${escapar(m)}</option>`).join('');
+  if (mercados.includes(previo)) selM.value = previo;
+
+  const selP = $('#fPeriodo');
+  const previoP = selP.value;
+  selP.innerHTML = '<option value="__todas">Todas las ejecuciones</option>' +
+    D.ejecuciones.map(e => {
+      const d = e.periodo && e.periodo.desde ? new Date(e.periodo.desde) : null;
+      const et = d ? d.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' }) : e.id;
+      return `<option value="${escapar(e.id)}">${escapar(et)} · ${escapar(e.id)}</option>`;
+    }).join('');
+  if (previoP) selP.value = previoP;
+
+  $('#resumenCarga').textContent =
+    `${D.ejecuciones.length} ejecución(es) · ${nf.format(D.posts.length)} publicaciones`;
+
+  $('#vacio').classList.add('oculto');
+  $('#app').classList.remove('oculto');
+}
+
+function seleccion() {
+  const mercado = $('#fMercado').value;
+  const ejec = $('#fPeriodo').value;
+  const alcance = $('#fAlcance').value;
+  return D.posts.filter(p =>
+    p.mercado === mercado &&
+    (ejec === '__todas' || p.ejecucion_id === ejec) &&
+    (alcance === 'todas' || p.posicion_periodo === 'dentro')
+  );
+}
+
+// Orden estable de cuentas: la propia primero, después por volumen.
+// El color sigue a la cuenta, nunca a su puesto en el ranking.
+function cuentasDe(posts) {
+  const mapa = new Map();
+  for (const p of posts) {
+    const h = p.cuenta_monitoreada;
+    if (!mapa.has(h)) mapa.set(h, { handle: h, rol: p.rol, posts: [] });
+    mapa.get(h).posts.push(p);
+  }
+  const arr = [...mapa.values()];
+  arr.sort((a, b) => (a.rol === 'propia' ? -1 : 0) - (b.rol === 'propia' ? -1 : 0) ||
+                     a.handle.localeCompare(b.handle));
+
+  // Los paquetes anteriores a la v0.2.0 del recolector no traen rol. Si
+  // ninguna cuenta se declara referencia, se toma la que tenga color de marca
+  // conocido: así una captura vieja se ve igual que una nueva.
+  let ref = arr.find(c => c.rol === 'propia');
+  if (!ref) {
+    ref = arr.find(c => MARCAS[c.handle.toLowerCase()]);
+    if (ref) ref.rol = 'propia';
+  }
+  const marca = ref ? MARCAS[ref.handle.toLowerCase()] : null;
+  const pool = marca ? marca.pool : POOL_POR_DEFECTO;
+  // Nunca se repite un color: si hay más cuentas que colores validados, las
+  // que sobran van en gris. Dos cuentas del mismo color es peor que una gris.
+  let i = 0;
+  for (const c of arr) {
+    if (c === ref && marca) { c.color = marca.ref; continue; }
+    c.color = i < pool.length ? pool[i] : 'var(--neutro)';
+    i++;
+  }
+  return arr;
+}
+
+function agregados(c) {
+  const P = c.posts;
+  const vistas = P.map(p => metrica(p, 'vistas'));
+  const vistasTot = suma(vistas);
+  const o = {
+    handle: c.handle, rol: c.rol, color: c.color,
+    n: P.length,
+    vistasTot,
+    vistasMed: mediana(vistas)
+  };
+  for (const s of SENALES) {
+    const v = P.map(p => metrica(p, s.k));
+    o[s.k + 'Tot'] = suma(v);
+    o[s.k + 'Med'] = mediana(v);
+    // Tasa por cada mil vistas: quita el alcance de la ecuación y deja
+    // sólo con qué intensidad respondió quien efectivamente vio.
+    o[s.k + 'K'] = vistasTot ? (suma(v) / vistasTot) * 1000 : null;
+  }
+  // Reacciones: la suma de las cuatro señales. Es aritmética honesta, no un
+  // índice ponderado — pero trata un me gusta y un compartido como iguales,
+  // y no lo son. Por eso el desglose queda siempre a la vista.
+  o.reaccionesTot = SENALES.reduce((s, x) => s + (o[x.k + 'Tot'] || 0), 0);
+  o.reaccionesPorPost = P.length ? o.reaccionesTot / P.length : 0;
+
+  o.horas = Array.from({ length: 24 }, (_, h) => P.filter(p => horaLocal(p) === h).length);
+  o.tipos = {};
+  for (const p of P) o.tipos[p.tipo] = (o.tipos[p.tipo] || 0) + 1;
+  return o;
+}
+
+// ====================================================================
+// ETAPA 1 · Clasificación por tema (modelo económico)
+// ====================================================================
+// El modelo hace lo único que el código no puede: leer. Etiqueta tema,
+// entidades y tipo de contenido. No cuenta, no compara, no ordena.
+// Todo se cachea por texto_hash, así reprocesar no cuesta nada.
+
+const TEMAS = ['política', 'economía', 'policiales', 'internacional', 'deportes',
+               'espectáculos', 'sociedad', 'tecnología', 'clima', 'otro'];
+
+const DB_CLAS = 'clasificacion';
+
+async function abrirDBClas() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('anubis_ia', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(DB_CLAS);
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+
+async function leerCache(hashes) {
+  const out = new Map();
+  try {
+    const db = await abrirDBClas();
+    await new Promise(res => {
+      const t = db.transaction(DB_CLAS, 'readonly');
+      const s = t.objectStore(DB_CLAS);
+      let quedan = hashes.length;
+      if (!quedan) return res();
+      for (const h of hashes) {
+        const q = s.get(h);
+        q.onsuccess = () => { if (q.result) out.set(h, q.result); if (!--quedan) res(); };
+        q.onerror = () => { if (!--quedan) res(); };
+      }
+    });
+  } catch (e) { /* sin caché, se reclasifica */ }
+  return out;
+}
+
+async function guardarCache(pares) {
+  try {
+    const db = await abrirDBClas();
+    await new Promise(res => {
+      const t = db.transaction(DB_CLAS, 'readwrite');
+      const s = t.objectStore(DB_CLAS);
+      for (const [h, v] of pares) s.put(v, h);
+      t.oncomplete = res; t.onerror = res;
+    });
+  } catch (e) {}
+}
+
+const PROMPT_CLAS =
+  'Clasificás publicaciones de medios argentinos y uruguayos en X. Para cada una devolvés:\n' +
+  '- tema: exactamente uno de ' + TEMAS.join(', ') + '\n' +
+  '- subtema: dos a cuatro palabras que describan el asunto concreto\n' +
+  '- entidades: nombres propios mencionados (personas, organismos, empresas, lugares, equipos). ' +
+  'Sin artículos, en singular, tal como aparecen. Máximo 6.\n' +
+  '- registro: informativo, opinión, servicio o promocional\n' +
+  'Respondés SÓLO un array JSON con un objeto por publicación, en el mismo orden, sin texto alrededor. ' +
+  'Si una publicación está cortada, clasificás con lo que hay.';
+
+async function llamarModelo(prov, clave, modelo, sistema, usuario, maxTokens) {
+  if (prov === 'anthropic') {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': clave,
+                 'anthropic-version': '2023-06-01',
+                 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model: modelo, max_tokens: maxTokens || 2000, system: sistema,
+        messages: [{ role: 'user', content: usuario }] })
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
+    return (j.content || []).map(c => c.text || '').join('');
+  }
+  const r = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: 'Bearer ' + clave },
+    body: JSON.stringify({ model: modelo, messages: [
+      { role: 'system', content: sistema }, { role: 'user', content: usuario }] })
+  });
+  const j = await r.json();
+  if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
+  return j.choices[0].message.content;
+}
+
+function extraerJSON(txt) {
+  const a = txt.indexOf('['), b = txt.lastIndexOf(']');
+  if (a < 0 || b < 0) throw new Error('El modelo no devolvió un array JSON');
+  return JSON.parse(txt.slice(a, b + 1));
+}
+
+// Clasifica sólo lo que no está en caché, en lotes y con algo de paralelismo.
+async function clasificar(posts, prov, clave, modelo, alProgreso) {
+  const porHash = new Map();
+  for (const p of posts) {
+    const h = p.texto_hash || ('sin-hash-' + p.post_id);
+    if (!porHash.has(h)) porHash.set(h, { hash: h, texto: (p.texto || '').slice(0, 400), posts: [] });
+    porHash.get(h).posts.push(p);
+  }
+
+  const unicos = [...porHash.values()];
+  const cache = await leerCache(unicos.map(u => u.hash));
+  const pendientes = unicos.filter(u => !cache.has(u.hash) && u.texto.trim().length > 3);
+
+  // Lo que ya estaba
+  for (const u of unicos) {
+    const c = cache.get(u.hash);
+    if (c) for (const p of u.posts) p.ia = c;
+  }
+
+  if (!pendientes.length) return { nuevos: 0, cacheados: unicos.length };
+
+  const LOTE = 20, PARALELO = 3;
+  const lotes = [];
+  for (let i = 0; i < pendientes.length; i += LOTE) lotes.push(pendientes.slice(i, i + LOTE));
+
+  let hechos = 0, fallidos = 0;
+  const nuevosPares = [];
+
+  for (let i = 0; i < lotes.length; i += PARALELO) {
+    const tanda = lotes.slice(i, i + PARALELO);
+    await Promise.all(tanda.map(async lote => {
+      const entrada = lote.map((u, j) => `${j + 1}. ${u.texto.replace(/\n+/g, ' ')}`).join('\n');
+      try {
+        const txt = await llamarModelo(prov, clave, modelo, PROMPT_CLAS, entrada, 3000);
+        const arr = extraerJSON(txt);
+        lote.forEach((u, j) => {
+          const c = arr[j];
+          if (!c) return;
+          const limpio = {
+            tema: TEMAS.includes(String(c.tema || '').toLowerCase()) ? String(c.tema).toLowerCase() : 'otro',
+            subtema: String(c.subtema || '').slice(0, 60),
+            entidades: Array.isArray(c.entidades) ? c.entidades.slice(0, 6).map(e => String(e).slice(0, 40)) : [],
+            registro: String(c.registro || 'informativo').toLowerCase()
+          };
+          nuevosPares.push([u.hash, limpio]);
+          for (const p of u.posts) p.ia = limpio;
+        });
+      } catch (e) {
+        fallidos += lote.length;
+        console.warn('[ANUBIS] lote fallido:', e.message);
+      }
+      hechos += lote.length;
+      if (alProgreso) alProgreso(Math.min(hechos, pendientes.length), pendientes.length);
+    }));
+  }
+
+  await guardarCache(nuevosPares);
+  return { nuevos: nuevosPares.length, cacheados: unicos.length - pendientes.length, fallidos };
+}
+
+// ====================================================================
+// ETAPA 2 · Agrupación por hecho (código, sin modelo)
+// ====================================================================
+// Dos publicaciones de medios distintos hablan del mismo hecho cuando
+// comparten nombres propios y palabras poco frecuentes de ese día.
+// Las entidades las extrajo el modelo; el emparejamiento lo hace el código,
+// que es exacto y gratis.
+
+const VACIAS = new Set(('de la el los las un una y o que en con por para del al su sus se lo es son fue ' +
+  'era como más pero sin sobre entre desde hasta este esta esto ese esa aquel tras ante bajo cabe hacia ' +
+  'según durante mediante contra tiene tienen hay ser estar tras dos tres muy ya no si le les nos').split(' '));
+
+function normalizar(s) {
+  return String(s || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9ñ ]/g, ' ');
+}
+
+function fichas(p) {
+  const set = new Set();
+  for (const e of (p.ia && p.ia.entidades) || []) {
+    const n = normalizar(e).trim().replace(/\s+/g, '_');
+    if (n.length > 2) set.add('@' + n);        // las entidades pesan aparte
+  }
+  for (const w of normalizar((p.texto || '').slice(0, 300)).split(/\s+/)) {
+    if (w.length >= 5 && !VACIAS.has(w)) set.add(w);
+  }
+  return set;
+}
+
+// Agrupa por día. Sólo mira publicaciones de cuentas distintas para decidir
+// un hecho compartido, pero acumula las del mismo medio en el mismo grupo.
+function construirHechos(posts, umbral) {
+  const conIA = posts.filter(p => p.ia);
+  if (conIA.length < 2) return [];
+
+  const F = new Map(conIA.map(p => [p.post_id, fichas(p)]));
+
+  // Peso inverso a la frecuencia: una palabra que aparece en todos no informa.
+  const df = new Map();
+  for (const s of F.values()) for (const t of s) df.set(t, (df.get(t) || 0) + 1);
+  const N = conIA.length;
+  const peso = t => {
+    const base = Math.log(N / (1 + (df.get(t) || 1)));
+    return (t[0] === '@' ? 1.6 : 1) * Math.max(base, 0.05);
+  };
+
+  const sim = (a, b) => {
+    const A = F.get(a.post_id), B = F.get(b.post_id);
+    if (!A.size || !B.size) return 0;
+    let comp = 0;
+    for (const t of A) if (B.has(t)) comp += peso(t);
+    const menor = [...(A.size <= B.size ? A : B)].reduce((s, t) => s + peso(t), 0);
+    return menor ? comp / menor : 0;
+  };
+
+  // Enlace simple dentro de una ventana de 18 horas
+  const orden = conIA.slice().sort((a, b) => Date.parse(a.publicado_iso || 0) - Date.parse(b.publicado_iso || 0));
+  const padre = new Map(orden.map(p => [p.post_id, p.post_id]));
+  const raiz = x => { while (padre.get(x) !== x) { padre.set(x, padre.get(padre.get(x))); x = padre.get(x); } return x; };
+  const unir = (a, b) => { const ra = raiz(a), rb = raiz(b); if (ra !== rb) padre.set(ra, rb); };
+
+  const VENTANA = 18 * 3600 * 1000;
+  for (let i = 0; i < orden.length; i++) {
+    const ti = Date.parse(orden[i].publicado_iso || 0);
+    for (let j = i + 1; j < orden.length; j++) {
+      const tj = Date.parse(orden[j].publicado_iso || 0);
+      if (tj - ti > VENTANA) break;
+      if (sim(orden[i], orden[j]) >= umbral) unir(orden[i].post_id, orden[j].post_id);
+    }
+  }
+
+  const grupos = new Map();
+  for (const p of orden) {
+    const r = raiz(p.post_id);
+    if (!grupos.has(r)) grupos.set(r, []);
+    grupos.get(r).push(p);
+  }
+
+  return [...grupos.values()].map(ps => {
+    ps.sort((a, b) => Date.parse(a.publicado_iso || 0) - Date.parse(b.publicado_iso || 0));
+    const cuentas = [...new Set(ps.map(p => p.cuenta_monitoreada))];
+    const temas = {};
+    for (const p of ps) temas[p.ia.tema] = (temas[p.ia.tema] || 0) + 1;
+    return {
+      id: ps[0].post_id,
+      posts: ps,
+      cuentas,
+      primero: ps[0],
+      titulo: (ps[0].texto || '').split('\n')[0].slice(0, 120),
+      tema: Object.entries(temas).sort((a, b) => b[1] - a[1])[0][0],
+      vistas: suma(ps.map(p => metrica(p, 'vistas'))),
+      reacciones: suma(ps.map(p => SENALES.reduce((s, x) => s + (metrica(p, x.k) || 0), 0)))
+    };
+  }).sort((a, b) => b.cuentas.length - a.cuentas.length || b.reacciones - a.reacciones);
+}
+
+// ====================================================================
+// Tooltip
+// ====================================================================
+const tip = $('#tip');
+function mostrarTip(ev, html) {
+  tip.innerHTML = html;
+  tip.style.opacity = '1';
+  const r = tip.getBoundingClientRect();
+  let x = ev.clientX + 14, y = ev.clientY - r.height - 10;
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - 14;
+  if (y < 8) y = ev.clientY + 18;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+function ocultarTip() { tip.style.opacity = '0'; }
+
+// ====================================================================
+// Gráficos (SVG propio)
+// ====================================================================
+
+// Barras apiladas: el largo total es la reacción que consigue una publicación
+// típica, y cada segmento muestra de qué está hecha. Un total sin desglose
+// escondería que "reacción" mezcla cosas de muy distinto valor.
+function barrasApiladas(datos, series, opt) {
+  opt = opt || {};
+  const max = Math.max(...datos.map(d => d.total || 0), 1);
+  return `<div class="barras conSec" role="img" aria-label="${escapar(opt.titulo || '')}">` +
+    datos.map(d => {
+      const segs = series.map(s => {
+        const v = d.partes[s.k] || 0;
+        if (v <= 0) return '';
+        const pct = v / max * 100;
+        const txt = opt.fmt ? opt.fmt(v) : fmt(v);
+        // La etiqueta va adentro sólo si entra con aire; si no, al tooltip.
+        const cabe = pct > 7;
+        return `<span class="seg" style="width:${pct}%;background:${s.c}"
+          data-tip="${escapar(d.et)}<br>${escapar(s.n)}: <b>${escapar(txt)}</b>"
+          >${cabe ? `<i class="segTxt" style="color:${s.claro ? '#0b0b0b' : '#fff'}">${escapar(txt)}</i>` : ''}</span>`;
+      }).join('');
+      return `<div class="fila">
+        <span class="et">${escapar(d.et)}</span>
+        <span class="pista apilada" data-tip="${escapar(d.tip || '')}">${segs}</span>
+        <span class="val">${escapar(opt.fmt ? opt.fmt(d.total) : fmt(d.total))}</span>
+        <span class="val2">${escapar(d.v2 || '')}</span>
+      </div>`;
+    }).join('') + '</div>';
+}
+
+function leyendaSenales() {
+  return `<div class="leyenda">${SENALES.map(s =>
+    `<span><i class="sw" style="background:${s.c}"></i>${escapar(s.n)}</span>`).join('')}</div>`;
+}
+
+// Redondea un máximo a un número legible (1, 2, 2,5 o 5 por potencia de diez),
+// para que los ejes no muestren cosas como 22.001.
+function maxLindo(v) {
+  if (!isFinite(v) || v <= 0) return 1;
+  const exp = Math.pow(10, Math.floor(Math.log10(v)));
+  const m = v / exp;
+  const paso = m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10;
+  return paso * exp;
+}
+
+// Barras horizontales en HTML, no en SVG: un SVG con viewBox fijo se escala
+// con el ancho del contenedor y en una tarjeta a media página el texto queda
+// ilegible. En HTML la tipografía conserva su tamaño real.
+// Las etiquetas de valor son además el relevo que exige el aviso de contraste
+// de la paleta: el color nunca es el único portador del dato.
+function barras(datos, opt) {
+  opt = opt || {};
+  const max = Math.max(...datos.map(d => d.v || 0), 1);
+  // El segundo valor evita la lectura tramposa de una tasa sola: quien tiene
+  // poco alcance siempre saca buena tasa, y sin el absoluto al lado el gráfico
+  // parece decir algo que no dice.
+  const conSec = datos.some(d => d.v2 !== undefined && d.v2 !== '');
+  return `<div class="barras${conSec ? ' conSec' : ''}" role="img" aria-label="${escapar(opt.titulo || '')}">` +
+    datos.map(d => {
+      const pct = Math.max((d.v || 0) / max * 100, 0.8);
+      const col = d.color || 'var(--s1)';
+      const val = d.vt !== undefined ? d.vt : fmt(d.v);
+      return `<div class="fila">
+        <span class="et">${escapar(d.et)}</span>
+        <span class="pista" data-tip="${escapar(d.tip || (d.et + ': ' + val))}"
+          ><span class="bar" style="width:${pct}%;background:${col}"></span></span>
+        <span class="val">${escapar(val)}</span>
+        ${conSec ? `<span class="val2">${escapar(d.v2 || '')}</span>` : ''}
+      </div>`;
+    }).join('') + '</div>';
+}
+
+// Dispersión. Identidad por etiqueta directa, no por color: con cuatro
+// entidades ninguna paleta de cuatro pasa las pruebas de todos los pares,
+// así que se destaca la cuenta propia y el resto queda en tono neutro.
+function dispersion(datos, opt) {
+  const W = 1000, H = 440, m = { t: 26, r: 40, b: 56, l: 82 };
+  const maxX = maxLindo(Math.max(...datos.map(d => d.x), 1) * 1.15);
+  const maxY = maxLindo(Math.max(...datos.map(d => d.y), 1) * 1.15);
+  const px = v => m.l + (v / maxX) * (W - m.l - m.r);
+  const py = v => H - m.b - (v / maxY) * (H - m.t - m.b);
+
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${escapar(opt.titulo || '')}">`;
+  for (let i = 0; i <= 4; i++) {
+    const y = m.t + (i / 4) * (H - m.t - m.b);
+    const v = maxY * (1 - i / 4);
+    s += `<line x1="${m.l}" y1="${y}" x2="${W - m.r}" y2="${y}" stroke="var(--grilla)" stroke-width="1"/>`;
+    s += `<text class="gtxt" x="${m.l - 10}" y="${y + 4}" text-anchor="end">${fmt(v)}</text>`;
+  }
+  for (let i = 0; i <= 4; i++) {
+    const x = m.l + (i / 4) * (W - m.l - m.r);
+    s += `<text class="gtxt" x="${x}" y="${H - m.b + 20}" text-anchor="middle">${fmt(maxX * i / 4)}</text>`;
+  }
+  s += `<line x1="${m.l}" y1="${H - m.b}" x2="${W - m.r}" y2="${H - m.b}" stroke="var(--eje)" stroke-width="1"/>`;
+  s += `<text class="gtxt" x="${(W + m.l) / 2}" y="${H - 12}" text-anchor="middle">${escapar(opt.ejeX)}</text>`;
+  s += `<text class="gtxt" x="${-(H - m.b + m.t) / 2}" y="16" transform="rotate(-90)" text-anchor="middle">${escapar(opt.ejeY)}</text>`;
+
+  for (const d of datos) {
+    const x = px(d.x), y = py(d.y);
+    const col = d.destacar ? (d.color || 'var(--s1)') : 'var(--neutro)';
+    s += `<circle cx="${x}" cy="${y}" r="9" fill="${col}" stroke="var(--sup)" stroke-width="2"/>`;
+    const aIzq = x > W * 0.72;
+    s += `<text class="gtxt ident" x="${aIzq ? x - 16 : x + 16}" y="${y + 4}" text-anchor="${aIzq ? 'end' : 'start'}">${escapar(d.et)}</text>`;
+    s += `<circle class="marca-hit" cx="${x}" cy="${y}" r="20" data-tip="${escapar(d.tip)}"/>`;
+  }
+  return s + '</svg>';
+}
+
+// Columnas por hora del día. Una sola serie, un solo color.
+function columnasHora(horas, color, opt) {
+  const W = 1000, H = 190, m = { t: 14, r: 8, b: 30, l: 34 };
+  const max = Math.max(...horas, 1);
+  const ancho = (W - m.l - m.r) / 24;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${escapar(opt && opt.titulo || 'Publicaciones por hora')}">`;
+  s += `<line x1="${m.l}" y1="${H - m.b}" x2="${W - m.r}" y2="${H - m.b}" stroke="var(--eje)"/>`;
+  s += `<text class="gtxt" x="${m.l - 8}" y="${m.t + 8}" text-anchor="end">${max}</text>`;
+  horas.forEach((v, h) => {
+    const alt = (v / max) * (H - m.t - m.b);
+    const x = m.l + h * ancho, y = H - m.b - alt;
+    const w = ancho - 2; // 2px de aire entre columnas, sin bordes
+    if (v > 0) {
+      s += `<path d="M${x} ${H - m.b} V${y + 4} a4 4 0 0 1 4 -4 H${x + w - 4} a4 4 0 0 1 4 4 V${H - m.b} Z" fill="${color}"/>`;
+    }
+    if (h % 3 === 0) s += `<text class="gtxt" x="${x + w / 2}" y="${H - m.b + 17}" text-anchor="middle">${String(h).padStart(2, '0')}</text>`;
+    s += `<rect class="marca-hit" x="${x}" y="${m.t}" width="${ancho}" height="${H - m.t - m.b}"
+           data-tip="${String(h).padStart(2, '0')}:00 — ${v} publicacion${v === 1 ? '' : 'es'}"/>`;
+  });
+  return s + '</svg>';
+}
+
+// ====================================================================
+// Tarjetas y tablas
+// ====================================================================
+let idTarjeta = 0;
+function tarjeta(titulo, sub, cuerpoSvg, tabla) {
+  const id = 'tj' + (++idTarjeta);
+  // Sin gráfico, la tabla ES el contenido: se muestra directamente y no hay
+  // botón para alternar entre dos cosas cuando sólo existe una.
+  const soloTabla = !cuerpoSvg;
+  return `<div class="tarjeta">
+    <div class="cabTarjeta">
+      <div class="crece"><h3>${escapar(titulo)}</h3><p class="sub">${sub}</p></div>
+      ${tabla && !soloTabla ? `<button class="chip" data-tabla="${id}" aria-pressed="false">Tabla</button>` : ''}
+    </div>
+    ${soloTabla ? '' : `<div id="${id}-g">${cuerpoSvg}</div>`}
+    ${tabla ? `<div id="${id}-t" class="envTabla${soloTabla ? '' : ' oculto'}">${tabla}</div>` : ''}
+  </div>`;
+}
+
+function tablaHTML(cols, filas) {
+  return `<table class="datos"><thead><tr>${cols.map(c => `<th>${escapar(c)}</th>`).join('')}</tr></thead>
+    <tbody>${filas.map(f => `<tr>${f.map(v => `<td>${escapar(v)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+}
+
+function leyendaCuentas(ag) {
+  return `<div class="leyenda">${ag.map(a =>
+    `<span><i class="sw" style="background:${a.color}"></i>@${escapar(a.handle)}${a.rol === 'propia' ? ' · propia' : ''}</span>`
+  ).join('')}</div>`;
+}
+
+// ====================================================================
+// Vista COMPARADO
+// ====================================================================
+function renderComparado() {
+  const posts = seleccion();
+  const cuentas = cuentasDe(posts);
+  if (!cuentas.length) { $('#vComparado').innerHTML = '<p class="explica">No hay publicaciones para este filtro.</p>'; return; }
+  const ag = cuentas.map(agregados);
+  const propia = ag.find(a => a.rol === 'propia') || ag[0];
+
+  let h = '';
+
+  h += `<h2 class="seccion">Lo que decide la redacción</h2>
+    <p class="explica">Cuántas veces publicó cada cuenta. Es actividad: depende sólo de la decisión del medio,
+    y por sí sola no dice nada sobre el resultado.</p>`;
+  // Todo gráfico de barras va de mayor a menor: el orden es parte de lo que se
+  // lee. La identidad de cada cuenta la lleva el color, no el puesto en la lista.
+  const porVolumen = ag.slice().sort((a, b) => b.n - a.n);
+  h += tarjeta('Publicaciones en el período', 'Actividad — no es una medida de éxito',
+    barras(porVolumen.map(a => ({ et: '@' + a.handle, v: a.n, color: a.color, tip: `@${a.handle}: ${fmt(a.n)} publicaciones` })),
+      { titulo: 'Publicaciones por cuenta' }),
+    tablaHTML(['Cuenta', 'Publicaciones'], porVolumen.map(a => ['@' + a.handle, fmt(a.n)])));
+
+  h += `<h2 class="seccion">Lo que decide la audiencia</h2>
+    <p class="explica">Estas cifras no las controla el medio.</p>`;
+
+  // --- la respuesta que consigue una publicación típica ---------------
+  const ordenReac = ag.slice().sort((a, b) => b.reaccionesPorPost - a.reaccionesPorPost);
+  const primero = ordenReac[0], ultimo = ordenReac[ordenReac.length - 1];
+  const masPublica = ag.slice().sort((a, b) => b.n - a.n)[0];
+
+  const partesPrimero = SENALES.map(s => `${fmt(primero[s.k + 'Tot'] / primero.n)} ${s.n.toLowerCase()}`).join(', ');
+  h += `<div class="comoSeLee"><strong>Cómo se lee.</strong> Cada barra es lo que consigue
+    <strong>una publicación promedio</strong> de esa cuenta, sumando las cuatro señales.
+    Por ejemplo: cada publicación de @${escapar(primero.handle)} recibe
+    <strong>${fmt(primero.reaccionesPorPost)} reacciones</strong> — ${escapar(partesPrimero)}.
+    Los colores del más claro al más oscuro son me gusta, guardados, respuestas y compartidos.
+    ${masPublica.handle !== primero.handle ? `Mirá @${escapar(masPublica.handle)}: publicó ${fmt(masPublica.n)} veces,
+    más que nadie, y cada publicación consigue ${fmt(masPublica.reaccionesPorPost)}. Publicar mucho no aparece
+    acá como mérito, y esa es la idea.` : ''}</div>`;
+
+  h += leyendaSenales();
+  h += tarjeta('Reacciones que consigue una publicación promedio',
+    `Me gusta + guardados + respuestas + compartidos, dividido por la cantidad de publicaciones — trata un me gusta y un compartido como equivalentes, por eso el desglose queda a la vista`,
+    barrasApiladas(ordenReac.map(a => ({
+      et: '@' + a.handle,
+      partes: SENALES.reduce((o, s) => (o[s.k] = a[s.k + 'Tot'] / a.n, o), {}),
+      total: a.reaccionesPorPost,
+      v2: fmt(a.n) + ' posts',
+      tip: `@${a.handle}<br><b>${fmt(a.reaccionesPorPost)}</b> reacciones por publicación<br>${fmt(a.reaccionesTot)} en total, en ${fmt(a.n)} publicaciones`
+    })), SENALES, { titulo: 'Reacciones por publicación' }),
+    tablaHTML(['Cuenta', 'Publicaciones'].concat(SENALES.map(s => s.n)).concat(['Reacciones por publicación']),
+      ordenReac.map(a => ['@' + a.handle, fmt(a.n)]
+        .concat(SENALES.map(s => fmt1(a[s.k + 'Tot'] / a.n)))
+        .concat([fmt(a.reaccionesPorPost)]))));
+
+  h += `<div class="par">`;
+  const porVistas = ag.slice().sort((a, b) => (b.vistasMed || 0) - (a.vistasMed || 0));
+  h += tarjeta('Alcance mediano por publicación', 'Vistas de la publicación típica',
+    barras(porVistas.map(a => ({ et: '@' + a.handle, v: a.vistasMed, color: a.color,
+      tip: `@${a.handle}<br>Mediana <b>${fmt(a.vistasMed)}</b> vistas<br>Total ${fmt(a.vistasTot)}` })),
+      { titulo: 'Vistas medianas' }),
+    tablaHTML(['Cuenta', 'Mediana', 'Total'], porVistas.map(a => ['@' + a.handle, fmt(a.vistasMed), fmt(a.vistasTot)])));
+
+  const porCompartidos = ag.slice().sort((a, b) => (b.repostsMed || 0) - (a.repostsMed || 0));
+  h += tarjeta('Compartidos medianos por publicación', 'La señal más costosa de producir',
+    barras(porCompartidos.map(a => ({ et: '@' + a.handle, v: a.repostsMed, color: a.color,
+      tip: `@${a.handle}<br>Mediana <b>${fmt(a.repostsMed)}</b> compartidos<br>Total ${fmt(a.repostsTot)}` })),
+      { titulo: 'Compartidos medianos' }),
+    tablaHTML(['Cuenta', 'Mediana', 'Total'], porCompartidos.map(a => ['@' + a.handle, fmt(a.repostsMed), fmt(a.repostsTot)])));
+  h += `</div>`;
+
+  // --- el gráfico que responde la pregunta de fondo -----------------
+  h += `<h2 class="seccion">Volumen contra alcance</h2>
+    <p class="explica">Cada punto es una cuenta. A la derecha, las que más publican; arriba, las que más alcance
+    consiguen por publicación. <strong>Abajo a la derecha se publica mucho y se llega poco.</strong>
+    La identidad va en la etiqueta y no en el color, porque con cuatro entidades ninguna paleta
+    de cuatro colores se distingue de manera confiable en una dispersión.</p>`;
+  h += tarjeta('Publicar más no es llegar más', 'Volumen en el eje horizontal, alcance mediano en el vertical',
+    dispersion(ag.map(a => ({
+      et: '@' + a.handle, x: a.n, y: a.vistasMed, destacar: a.rol === 'propia', color: a.color,
+      tip: `@${a.handle}<br>${fmt(a.n)} publicaciones<br>Mediana <b>${fmt(a.vistasMed)}</b> vistas`
+    })), { titulo: 'Volumen contra alcance', ejeX: 'Publicaciones en el período', ejeY: 'Vistas medianas por publicación' }),
+    tablaHTML(['Cuenta', 'Publicaciones', 'Vistas medianas'], ag.map(a => ['@' + a.handle, fmt(a.n), fmt(a.vistasMed)])));
+
+  // --- perfil de respuesta ------------------------------------------
+  // --- señal por señal, con el denominador a elección ------------------
+  const dn = DENOMINADORES[denomActual];
+  h += `<h2 class="seccion">Señal por señal</h2>
+    <p class="explica">Las cuatro señales por separado, ordenadas por lo que le cuesta a una persona producirlas.
+    <strong>El denominador cambia quién gana</strong>, así que conviene mirarlo con los tres y quedarse con lo que
+    aguanta en los tres.</p>
+    <div class="selDenom">
+      <span class="etq">Contar</span>
+      ${Object.entries(DENOMINADORES).map(([k, d]) =>
+        `<button class="chip" data-denom="${k}" aria-pressed="${k === denomActual}">${escapar(d.n)}</button>`).join('')}
+    </div>
+    <p class="explica" style="margin-top:-4px">${escapar(dn.ex)}</p>`;
+
+  const valorDe = (a, s) => a[s.k + 'Tot'] / (dn.div(a) || 1);
+  const formato = denomActual === 'bruto' ? fmt : fmt1;
+
+  h += leyendaCuentas(ag);
+  h += `<div class="par">`;
+  for (const s of SENALES) {
+    const orden = ag.slice().sort((x, y) => valorDe(y, s) - valorDe(x, s));
+    const lider = orden[0];
+    // ¿El líder lo es con cualquier denominador? Eso es lo que aguanta.
+    const robusto = Object.values(DENOMINADORES).every(d =>
+      ag.slice().sort((x, y) => (y[s.k + 'Tot'] / (d.div(y) || 1)) - (x[s.k + 'Tot'] / (d.div(x) || 1)))[0].handle === lider.handle);
+    h += tarjeta(s.n,
+      `${escapar(dn.n)} · ${s.d} — ` +
+      (robusto ? `<strong>@${escapar(lider.handle)} gana lo cuentes como lo cuentes</strong>`
+               : `@${escapar(lider.handle)} con este denominador, no con todos`),
+      barras(orden.map(a => ({
+        et: '@' + a.handle, v: valorDe(a, s), vt: formato(valorDe(a, s)),
+        v2: denomActual === 'bruto' ? '' : fmt(a[s.k + 'Tot']) + ' tot.', color: a.color,
+        tip: `@${a.handle}<br><b>${formato(valorDe(a, s))}</b> · ${escapar(dn.n.toLowerCase())}<br>${fmt(a[s.k + 'Tot'])} en total, en ${fmt(a.n)} publicaciones`
+      })), { titulo: s.n }),
+      tablaHTML(['Cuenta', 'Cantidad total', 'Por publicación', 'Por mil vistas', 'Publicaciones'],
+        orden.map(a => ['@' + a.handle, fmt(a[s.k + 'Tot']), fmt1(a[s.k + 'Tot'] / a.n), fmt1(a[s.k + 'K']), fmt(a.n)])));
+  }
+  h += `</div>`;
+
+  // --- ritmo ---------------------------------------------------------
+  h += `<h2 class="seccion">Ritmo de publicación</h2>
+    <p class="explica">Publicaciones por hora del día, hora local. Sirve para ver quién corta de noche y quién no.</p>`;
+  for (const a of ag) {
+    h += tarjeta('@' + a.handle + (a.rol === 'propia' ? ' · propia' : ''),
+      `${fmt(a.n)} publicaciones · pico a las ${String(a.horas.indexOf(Math.max(...a.horas))).padStart(2, '0')}:00`,
+      columnasHora(a.horas, a.color, { titulo: 'Ritmo de @' + a.handle }),
+      tablaHTML(['Hora', 'Publicaciones'], a.horas.map((v, i) => [String(i).padStart(2, '0') + ':00', String(v)])));
+  }
+
+  h += `<p class="explica" style="margin-top:22px">
+    <strong>Una advertencia sobre estas cifras.</strong> Todas las métricas se leyeron en un único momento,
+    así que una publicación de la mañana acumuló más horas de exposición que una de la noche.
+    Sirven para comparar órdenes de magnitud, no para un ranking fino. Eso se corrige con una segunda
+    lectura a T+24, que todavía no está implementada.</p>`;
+
+  $('#vComparado').innerHTML = h;
+}
+
+// ====================================================================
+// Vista CUENTA PROPIA
+// ====================================================================
+function renderPropio() {
+  const posts = seleccion();
+  const cuentas = cuentasDe(posts);
+  if (!cuentas.length) { $('#vPropio').innerHTML = '<p class="explica">No hay publicaciones para este filtro.</p>'; return; }
+
+  const guardado = leerLocal('anubis_cuenta');
+  const elegida = cuentas.find(c => c.handle === guardado) || cuentas.find(c => c.rol === 'propia') || cuentas[0];
+  const ag = agregados(elegida);
+  const resto = cuentas.filter(c => c.handle !== elegida.handle).map(agregados);
+
+  let h = `<div class="filtros" style="margin-bottom:18px">
+    <label for="fCuenta">Cuenta</label>
+    <select id="fCuenta">${cuentas.map(c =>
+      `<option value="${escapar(c.handle)}"${c.handle === elegida.handle ? ' selected' : ''}>@${escapar(c.handle)}${c.rol === 'propia' ? ' · propia' : ''}</option>`).join('')}</select>
+  </div>`;
+
+  const mercadoTasa = s => {
+    const vt = suma(resto.map(r => r.vistasTot));
+    return vt ? (suma(resto.map(r => r[s + 'Tot'])) / vt) * 1000 : null;
+  };
+
+  h += `<div class="fichas">
+    <div class="ficha"><span class="v">${fmt(ag.n)}</span><span class="e">Publicaciones</span></div>
+    <div class="ficha"><span class="v">${fmt(ag.vistasTot)}</span><span class="e">Vistas acumuladas</span></div>
+    <div class="ficha"><span class="v">${fmt(ag.vistasMed)}</span><span class="e">Vistas medianas</span></div>
+    ${SENALES.map(s => {
+      const m = mercadoTasa(s.k);
+      const dif = (m && ag[s.k + 'K'] !== null && isFinite(m) && m > 0) ? (ag[s.k + 'K'] / m) : null;
+      let nota = '';
+      if (dif !== null) {
+        const texto = dif >= 1.05 ? '×' + fmt1(dif) + ' sobre el resto del mercado'
+                    : dif <= 0.95 ? '×' + fmt1(dif) + ' del resto del mercado'
+                    : 'a la par del resto del mercado';
+        nota = `<span class="n" style="color:${dif >= 1.05 ? 'var(--ok)' : 'var(--tinta-2)'}">${texto}</span>`;
+      }
+      return `<div class="ficha"><span class="v">${fmt1(ag[s.k + 'K'])}</span><span class="e">${s.n} por mil vistas</span>${nota}</div>`;
+    }).join('')}
+  </div>`;
+
+  h += tarjeta('Ritmo de publicación', `Hora local · ${fmt(ag.n)} publicaciones`,
+    columnasHora(ag.horas, ag.color, { titulo: 'Ritmo' }),
+    tablaHTML(['Hora', 'Publicaciones'], ag.horas.map((v, i) => [String(i).padStart(2, '0') + ':00', String(v)])));
+
+  const tipos = Object.entries(ag.tipos).sort((a, b) => b[1] - a[1]);
+  h += tarjeta('Formatos', 'Qué tipo de publicación usó',
+    barras(tipos.map(([t, v]) => ({ et: t, v, color: ag.color, vt: fmt(v) + ' · ' + Math.round(100 * v / ag.n) + '%' })), { titulo: 'Formatos' }),
+    tablaHTML(['Formato', 'Publicaciones', 'Porcentaje'], tipos.map(([t, v]) => [t, fmt(v), Math.round(100 * v / ag.n) + '%'])));
+
+  // Publicaciones destacadas por cada señal
+  h += `<h2 class="seccion">Publicaciones destacadas</h2>
+    <p class="explica">La más alta de cada señal. El enlace abre la publicación original en X.</p>`;
+  let filas = '';
+  for (const s of SENALES.concat([{ k: 'vistas', n: 'Vistas' }])) {
+    const top = elegida.posts.slice().sort((a, b) => (metrica(b, s.k) || 0) - (metrica(a, s.k) || 0))[0];
+    if (!top) continue;
+    const txt = (top.texto || '').split('\n')[0].slice(0, 110);
+    filas += `<tr><td style="white-space:nowrap">${escapar(s.n)}</td>
+      <td style="text-align:right;font-weight:700">${fmt(metrica(top, s.k))}</td>
+      <td style="text-align:left">${escapar(txt)}${top.texto_truncado ? ' <em style="color:var(--tinta-3)">(texto cortado por X)</em>' : ''}</td>
+      <td><a href="${escapar(top.url)}" target="_blank" rel="noopener">ver</a></td></tr>`;
+  }
+  h += `<div class="tarjeta"><div class="envTabla"><table class="datos">
+    <thead><tr><th>Señal</th><th>Valor</th><th>Publicación</th><th></th></tr></thead>
+    <tbody>${filas}</tbody></table></div></div>`;
+
+  const truncados = elegida.posts.filter(p => p.texto_truncado).length;
+  if (truncados) {
+    h += `<div class="aviso"><strong>${truncados} de ${ag.n} publicaciones tienen el texto cortado</strong>
+      por el "Mostrar más" de X. El análisis de contenido de esta cuenta trabaja con material incompleto
+      hasta que exista la segunda pasada que recupera el texto entero.</div>`;
+  }
+
+  $('#vPropio').innerHTML = h;
+  const sel = $('#fCuenta');
+  if (sel) sel.addEventListener('change', () => { guardarLocal('anubis_cuenta', sel.value); renderPropio(); });
+}
+
+// ====================================================================
+// Vista PREGUNTAS
+// ====================================================================
+const MODELOS = {
+  anthropic: { economico: 'claude-haiku-4-5', avanzado: 'claude-opus-4-6' },
+  openai:    { economico: 'gpt-5-mini',       avanzado: 'gpt-5' }
+};
+
+// Los temas y los hechos ya clasificados, en la misma forma doble que muestra
+// la pantalla: el mercado entero y cada cuenta por separado. Sin esto el modelo
+// sólo ve métricas y no puede decir nada sobre agenda.
+function temasParaModelo(posts, cuentas) {
+  const clasif = posts.filter(p => p.ia);
+  if (!clasif.length) return null;
+  const merc = {}, porCuenta = {};
+  for (const p of clasif) {
+    const t = p.ia.tema, hd = p.cuenta_monitoreada;
+    const reac = SENALES.reduce((s, x) => s + (metrica(p, x.k) || 0), 0);
+    (merc[t] = merc[t] || { n: 0, reac: 0 });
+    merc[t].n++; merc[t].reac += reac;
+    const m = (porCuenta[hd] = porCuenta[hd] || {});
+    (m[t] = m[t] || { n: 0, reac: 0 });
+    m[t].n++; m[t].reac += reac;
+  }
+  const empaquetar = o => Object.entries(o).sort((a, b) => b[1].n - a[1].n)
+    .map(([t, d]) => ({ tema: t, publicaciones: d.n,
+      reacciones_por_publicacion: d.n >= 3 ? +(d.reac / d.n).toFixed(1) : null }));
+
+  const hechos = hechosCache || (hechosCache = construirHechos(posts, umbralHecho));
+  const compartidos = hechos.filter(x => x.cuentas.length > 1);
+  const ref = cuentas.find(c => c.rol === 'propia');
+  const cubreRef = x => ref && x.cuentas.some(c => c.toLowerCase() === ref.handle.toLowerCase());
+
+  return {
+    nota: 'mercado es la suma de todas las cuentas; por_cuenta no se suma con mercado, son lecturas distintas del mismo conjunto. reacciones_por_publicacion es null cuando hay menos de tres piezas.',
+    clasificadas: clasif.length,
+    mercado: empaquetar(merc),
+    por_cuenta: Object.fromEntries(Object.entries(porCuenta).map(([h, o]) => [h, empaquetar(o)])),
+    hechos_compartidos: compartidos.length,
+    huecos_de_cobertura: ref ? compartidos.filter(x => !cubreRef(x)).slice(0, 20)
+      .map(x => ({ hecho: x.titulo, tema: x.tema, lo_cubrieron: x.cuentas })) : null,
+    exclusivos_de_la_cuenta_propia: ref ? hechos.filter(x => x.cuentas.length === 1 && cubreRef(x))
+      .sort((a, b) => b.reacciones - a.reacciones).slice(0, 10)
+      .map(x => ({ hecho: x.titulo, tema: x.tema, reacciones: x.reacciones })) : null
+  };
+}
+
+function contextoParaModelo() {
+  const posts = seleccion();
+  const cuentas = cuentasDe(posts);
+  const ag = cuentas.map(agregados);
+  const ej = $('#fPeriodo');
+  const temas = temasParaModelo(posts, cuentas);
+  return {
+    temas_y_agenda: temas,
+    mercado: $('#fMercado').value,
+    ejecucion: ej.options[ej.selectedIndex] ? ej.options[ej.selectedIndex].text : '',
+    advertencia: 'Todas las métricas se leyeron en un único momento; el tiempo de exposición no está igualado entre publicaciones.',
+    cuentas: ag.map(a => ({
+      cuenta: a.handle, rol: a.rol, publicaciones: a.n,
+      vistas_total: a.vistasTot, vistas_mediana: a.vistasMed,
+      por_mil_vistas: SENALES.reduce((o, s) => (o[s.k] = a[s.k + 'K'] === null ? null : +a[s.k + 'K'].toFixed(2), o), {}),
+      totales: SENALES.reduce((o, s) => (o[s.k] = a[s.k + 'Tot'], o), {}),
+      publicaciones_por_hora: a.horas,
+      formatos: a.tipos
+    })),
+    titulares_muestra: cuentas.map(c => ({
+      cuenta: c.handle,
+      titulares: c.posts.slice()
+        .sort((a, b) => (metrica(b, 'vistas') || 0) - (metrica(a, 'vistas') || 0))
+        .slice(0, 12)
+        .map(p => ({
+          t: (p.texto || '').split('\n')[0].slice(0, 140),
+          cortado: !!p.texto_truncado,
+          vistas: metrica(p, 'vistas'), compartidos: metrica(p, 'reposts')
+        }))
+    }))
+  };
+}
+
+const SISTEMA = 'Sos un analista de medios. Respondés en español rioplatense, con registro profesional, ' +
+  'sin interjecciones coloquiales. Trabajás sólo con los datos que recibís: si algo no está en los datos, ' +
+  'lo decís en vez de suponerlo. Distinguís siempre entre la actividad del medio (cuánto publica, que decide él) ' +
+  'y la respuesta de la audiencia (vistas, me gusta, guardados, respuestas, compartidos, que no decide él). ' +
+  'Nunca presentás un total como medida de éxito si el volumen de publicación difiere entre cuentas. ' +
+  'No confundas el agregado del mercado con una cuenta sola: son lecturas distintas y lo aclarás cuando usás una. ' +
+  'Señalás las limitaciones de los datos cuando afectan la conclusión.';
+
+// Las preguntas que el panel se hace solo. Están fijas a propósito: si las
+// eligiera el modelo, dos corridas no serían comparables entre sí ni entre
+// modelos, que es justo lo que se quiere poder hacer.
+const PREGUNTAS_AUTO = [
+  'Agenda del día: qué dominó la conversación en el conjunto del mercado y cómo se repartió por tema.',
+  'La cuenta propia frente al mercado: en qué temas pesa más y en cuáles menos que el conjunto, y qué dice eso de su perfil editorial.',
+  'Rendimiento: qué temas le consiguen a la cuenta propia más reacción por publicación que al mercado, y cuáles menos. Separá el esfuerzo del lector (compartir y responder cuestan más que un me gusta).',
+  'Huecos: qué cubrieron dos o más competidores que la cuenta propia no tocó, y cuáles de esos huecos parecen relevantes y cuáles no.',
+  'Una recomendación operativa para mañana, concreta y accionable, que se desprenda de los datos y no de supuestos.'
+];
+
+function instruccionAuto() {
+  return 'Hacé un análisis del día respondiendo, en este orden y con estos títulos, las cinco preguntas ' +
+    'siguientes. Cada respuesta: entre tres y seis oraciones, con las cifras que la sostienen entre ' +
+    'paréntesis. No inventes cifras que no estén en los datos.\n\n' +
+    PREGUNTAS_AUTO.map((q, i) => `${i + 1}. ${q}`).join('\n');
+}
+
+// Markdown mínimo: negrita y títulos. El resto lo resuelve pre-wrap.
+function formatoTexto(t) {
+  return escapar(t)
+    .replace(/^#{1,6}\s*(.+)$/gm, '<b>$1</b>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+}
+
+// Una clave por proveedor, compartida entre la clasificación y las preguntas.
+// Las versiones anteriores guardaban una sola clave sin decir de quién era:
+// se migra asumiendo que era la del proveedor que estaba elegido.
+function claveDe(prov) {
+  const k = leerLocal('anubis_clave_' + prov);
+  if (k) return k;
+  if ((leerLocal('anubis_prov') || 'anthropic') === prov) return leerLocal('anubis_clave') || '';
+  return '';
+}
+
+async function llamarModelo(prov, modelo, clave, sistema, usuario) {
+  if (prov === 'anthropic') {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': clave,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({ model: modelo, max_tokens: 2200, system: sistema,
+        messages: [{ role: 'user', content: usuario }] })
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
+    return (j.content || []).map(c => c.text || '').join('');
+  }
+  const r = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: 'Bearer ' + clave },
+    body: JSON.stringify({ model: modelo, messages: [
+      { role: 'system', content: sistema }, { role: 'user', content: usuario }] })
+  });
+  const j = await r.json();
+  if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
+  return j.choices[0].message.content;
+}
+
+function errorHTML(e) {
+  return `<div class="aviso" style="margin-top:14px"><strong>No se pudo consultar.</strong> ${escapar(e.message)}
+    <br><br>Si el error menciona CORS o "Failed to fetch", es porque el archivo se abrió con doble clic
+    (origen <code>file://</code>). Servilo por HTTP y funciona:
+    <code>python3 -m http.server</code> en la carpeta, y abrilo en <code>localhost:8000</code>.</div>`;
+}
+
+function renderPreguntas() {
+  const prov = leerLocal('anubis_prov') || 'anthropic';
+  const ctx = contextoParaModelo();
+  const tam = Math.round(JSON.stringify(ctx).length / 1024);
+  const hayTemas = !!ctx.temas_y_agenda;
+
+  $('#vPreguntas').innerHTML = `
+    <h2 class="seccion">Preguntas sobre estos datos</h2>
+    <p class="explica">Al modelo no se le mandan las publicaciones una por una: recibe los agregados
+    ya calculados —el mercado entero y cada cuenta por separado— más una muestra de titulares.
+    Eso es lo que permite usar el modelo económico para casi todo y reservar el avanzado para lo que
+    de verdad requiere interpretación. Contexto actual: ~${tam} KB${hayTemas ? ', con temas y agenda incluidos' : '. Todavía sin clasificar: el modelo no va a poder hablar de temas'}.</p>
+
+    <div class="tarjeta">
+      <div class="cabTarjeta"><div class="crece">
+        <h3>Claves de API</h3>
+        <p class="sub">Quedan sólo en este navegador. La del modelo avanzado no se guarda nunca.</p>
+      </div></div>
+      <div class="par" style="gap:12px">
+        <label class="explica" style="display:block">Anthropic <em>(Claude)</em>
+          <input type="password" id="kAnthropic" placeholder="sk-ant-…" style="width:100%;margin-top:6px"
+                 value="${escapar(claveDe('anthropic'))}"></label>
+        <label class="explica" style="display:block">OpenAI <em>(GPT)</em>
+          <input type="password" id="kOpenai" placeholder="sk-…" style="width:100%;margin-top:6px"
+                 value="${escapar(claveDe('openai'))}"></label>
+      </div>
+    </div>
+
+    <div class="tarjeta">
+      <div class="cabTarjeta"><div class="crece">
+        <h3>Que Anubis pregunte solo</h3>
+        <p class="sub">Cinco preguntas fijas sobre la agenda, el perfil, el rendimiento, los huecos y qué hacer mañana</p>
+      </div></div>
+      <p class="explica" style="margin-top:0">Las preguntas son siempre las mismas, a propósito: si las eligiera
+      el modelo, dos corridas no serían comparables entre sí, y menos todavía entre dos modelos distintos.</p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <button class="primario" id="aClaude" style="background:var(--marca);color:#fff">Analizar con Claude Haiku</button>
+        <button id="aGpt">Analizar con GPT-5 mini</button>
+        <button id="aAmbos">Los dos y comparar</button>
+        <span id="aEstado" style="font-size:12px;color:var(--tinta-3)"></span>
+      </div>
+      <div id="aSalida"></div>
+    </div>
+
+    <div class="tarjeta">
+      <div class="cabTarjeta"><div class="crece">
+        <h3>Tu pregunta</h3>
+        <p class="sub">Cualquier cosa que no esté en las cinco de arriba</p>
+      </div></div>
+      <div class="filtros" style="margin:0 0 14px;padding:0;border:0;background:transparent">
+        <label for="pProv">Proveedor</label>
+        <select id="pProv">
+          <option value="anthropic"${prov === 'anthropic' ? ' selected' : ''}>Anthropic</option>
+          <option value="openai"${prov === 'openai' ? ' selected' : ''}>OpenAI</option>
+        </select>
+        <label for="pModo">Modelo</label>
+        <select id="pModo">
+          <option value="economico">Económico — para todo lo habitual</option>
+          <option value="avanzado">Avanzado — sólo lectura editorial</option>
+        </select>
+      </div>
+
+      <textarea id="pPregunta" rows="3" placeholder="Escribí o dictá. Por ejemplo: ¿qué temas cubrió la competencia que nosotros no tocamos?"></textarea>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap">
+        <button class="primario" id="pEnviar" style="background:var(--marca);color:#fff">Preguntar</button>
+        <button id="pDictar">Dictar</button>
+        <label class="explica" style="margin:0;display:flex;align-items:center;gap:6px">
+          <input type="checkbox" id="pAuto" style="width:auto;margin:0"> preguntar al terminar de dictar</label>
+        <button id="pCopiar">Copiar el contexto</button>
+        <span id="pEstado" style="font-size:12px;color:var(--tinta-3)"></span>
+      </div>
+      <p class="explica" style="margin:10px 0 0" id="pDictNota">El dictado usa el reconocimiento de voz
+        de Chrome, que no cuesta nada. Si ese falla, graba y transcribe con el modelo económico de OpenAI,
+        que sí consume clave.</p>
+      <div id="pRespuesta"></div>
+    </div>
+
+    <div class="aviso" id="avisoAvanzado">
+      <strong>Sobre restringir el modelo avanzado.</strong> Este panel es un archivo que corre en tu navegador,
+      así que no puede verificar quién lo está usando: cualquiera que lo abra y tenga una clave puede elegir
+      cualquier modelo. El control real es que la clave del modelo avanzado la tengas sólo vos y no quede
+      guardada acá. Una restricción por usuario exige un servidor que valide identidad, y eso es otra etapa.
+    </div>`;
+
+  $('#kAnthropic').addEventListener('change', e => guardarLocal('anubis_clave_anthropic', e.target.value.trim()));
+  $('#kOpenai').addEventListener('change', e => guardarLocal('anubis_clave_openai', e.target.value.trim()));
+  $('#pProv').addEventListener('change', e => guardarLocal('anubis_prov', e.target.value));
+  $('#pCopiar').addEventListener('click', () => {
+    navigator.clipboard.writeText(JSON.stringify(contextoParaModelo(), null, 2));
+    $('#pEstado').textContent = 'Contexto copiado.';
+  });
+  $('#pEnviar').addEventListener('click', preguntar);
+  $('#pDictar').addEventListener('click', alternarDictado);
+  $('#aClaude').addEventListener('click', () => analisisAuto(['anthropic']));
+  $('#aGpt').addEventListener('click', () => analisisAuto(['openai']));
+  $('#aAmbos').addEventListener('click', () => analisisAuto(['anthropic', 'openai']));
+}
+
+const NOMBRE_PROV = { anthropic: 'Claude Haiku', openai: 'GPT-5 mini' };
+
+// Dos modelos, el mismo contexto y las mismas preguntas. Lo que interesa no es
+// cuál escribe mejor sino dónde no coinciden: ahí es donde la lectura depende
+// del modelo y no de los datos, y eso hay que mirarlo a mano.
+async function analisisAuto(provs) {
+  const est = $('#aEstado'), out = $('#aSalida');
+  const claves = {};
+  for (const p of provs) {
+    claves[p] = (p === 'anthropic' ? $('#kAnthropic') : $('#kOpenai')).value.trim();
+    if (!claves[p]) { est.textContent = `Falta la clave de ${p === 'anthropic' ? 'Anthropic' : 'OpenAI'}.`; return; }
+    guardarLocal('anubis_clave_' + p, claves[p]);
+  }
+
+  const botones = ['#aClaude', '#aGpt', '#aAmbos'].map($);
+  botones.forEach(b => b.disabled = true);
+  est.textContent = provs.length > 1 ? 'Consultando los dos modelos en paralelo…' : 'Consultando…';
+  out.innerHTML = '';
+
+  const usuario = 'Datos:\n```json\n' + JSON.stringify(contextoParaModelo()) + '\n```\n\n' + instruccionAuto();
+
+  const resultados = await Promise.all(provs.map(async p => {
+    try {
+      return { prov: p, texto: await llamarModelo(p, MODELOS[p].economico, claves[p], SISTEMA, usuario) };
+    } catch (e) { return { prov: p, error: e }; }
+  }));
+
+  out.innerHTML = `<div class="${provs.length > 1 ? 'par' : ''}">` + resultados.map(r => `
+    <div>
+      <p class="sub" style="margin:0 0 6px"><strong>${escapar(NOMBRE_PROV[r.prov])}</strong>
+        · ${escapar(MODELOS[r.prov].economico)}</p>
+      ${r.error ? errorHTML(r.error) : `<div class="respuesta">${formatoTexto(r.texto)}</div>`}
+    </div>`).join('') + '</div>';
+
+  const ok = resultados.filter(r => !r.error);
+  if (provs.length > 1 && ok.length === 2) {
+    out.innerHTML += `<div style="margin-top:16px">
+      <button id="aContraste">¿En qué no coinciden?</button>
+      <span id="aEstado2" style="font-size:12px;color:var(--tinta-3);margin-left:10px"></span>
+      <div id="aContrasteSalida"></div></div>`;
+    $('#aContraste').addEventListener('click', () => contrastar(ok, claves));
+  }
+  est.textContent = ok.length ? 'Listo.' : '';
+  botones.forEach(b => b.disabled = false);
+}
+
+async function contrastar(ok, claves) {
+  const est = $('#aEstado2'), out = $('#aContrasteSalida');
+  const b = $('#aContraste');
+  b.disabled = true;
+  est.textContent = 'Comparando…';
+  const sistema = 'Comparás dos análisis del mismo conjunto de datos, hechos por dos modelos distintos. ' +
+    'Respondés en español rioplatense, con registro profesional. No elegís un ganador: señalás en qué ' +
+    'coinciden, en qué se contradicen y qué afirmó uno que el otro no menciona. Si una afirmación no se ' +
+    'puede verificar con los datos agregados, lo decís.';
+  const usuario = ok.map(r => `## Análisis de ${NOMBRE_PROV[r.prov]}\n${r.texto}`).join('\n\n') +
+    '\n\nDecime: 1) en qué coinciden, 2) en qué se contradicen, 3) qué dijo uno solo y merece revisarse.';
+  try {
+    const texto = await llamarModelo('anthropic', MODELOS.anthropic.economico, claves.anthropic, sistema, usuario);
+    out.innerHTML = `<div class="respuesta" style="margin-top:12px">${formatoTexto(texto)}</div>`;
+    est.textContent = '';
+  } catch (e) {
+    out.innerHTML = errorHTML(e);
+    est.textContent = '';
+  } finally { b.disabled = false; }
+}
+
+// ====================================================================
+// Dictado de la pregunta
+// ====================================================================
+// Dos caminos, y hacen falta los dos. El reconocimiento nativo de Chrome no
+// cuesta nada y escribe mientras hablás, pero en páginas de extensión falla
+// seguido con error de red. Cuando eso pasa se graba el audio y se transcribe
+// con el modelo económico de OpenAI, que es confiable pero consume clave.
+
+const DIC = { activo: false, rec: null, grabador: null, stream: null, trozos: [], base: '' };
+
+function dictEstado(txt, ocupado) {
+  const b = $('#pDictar');
+  if (b) {
+    b.textContent = DIC.activo ? 'Detener' : 'Dictar';
+    b.disabled = !!ocupado;
+  }
+  if ($('#pEstado')) $('#pEstado').textContent = txt || '';
+}
+
+function alternarDictado() {
+  if (DIC.activo) return detenerDictado();
+  DIC.base = $('#pPregunta').value.trim();
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SR) return arrancarVoz(SR);
+  arrancarGrabacion('Este navegador no tiene reconocimiento de voz.');
+}
+
+function arrancarVoz(SR) {
+  const rec = new SR();
+  rec.lang = 'es-AR';
+  rec.continuous = true;
+  rec.interimResults = true;
+  let final = '';
+  let huboAlgo = false;
+
+  rec.onresult = e => {
+    let parcial = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) { final += t; huboAlgo = true; } else parcial += t;
+    }
+    $('#pPregunta').value = (DIC.base ? DIC.base + ' ' : '') + (final + parcial).trim();
+  };
+
+  rec.onerror = e => {
+    // Sin permiso no hay nada que reintentar; el resto de los errores suelen
+    // ser del servicio de voz y ahí la grabación sí funciona.
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      DIC.activo = false;
+      dictEstado('Chrome no dio acceso al micrófono. Habilitalo en el candado de la barra de direcciones.');
+      return;
+    }
+    if (e.error === 'no-speech' || e.error === 'aborted') return;
+    try { rec.stop(); } catch (_) {}
+    DIC.rec = null;
+    arrancarGrabacion('El reconocimiento de Chrome falló (' + e.error + ').');
+  };
+
+  // El cierre pasa siempre por acá, lo haya pedido el usuario o no: es el
+  // único momento en que el texto final está completo.
+  rec.onend = () => {
+    if (DIC.rec !== rec) return;
+    DIC.activo = false; DIC.rec = null;
+    dictEstado(huboAlgo ? 'Dictado listo.' : 'No se escuchó nada.');
+    if (huboAlgo) quizasPreguntar();
+  };
+
+  try {
+    rec.start();
+    DIC.rec = rec; DIC.activo = true;
+    dictEstado('Escuchando… hablá y después tocá Detener.');
+  } catch (e) {
+    arrancarGrabacion('No se pudo iniciar el reconocimiento.');
+  }
+}
+
+async function arrancarGrabacion(motivo) {
+  const clave = $('#kOpenai').value.trim();
+  if (!clave) {
+    dictEstado(motivo + ' Para transcribir hace falta la clave de OpenAI, que es la única de las dos con transcripción.');
+    return;
+  }
+  try {
+    DIC.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) {
+    dictEstado(motivo + ' Y el micrófono no está disponible: ' + e.message);
+    return;
+  }
+  DIC.trozos = [];
+  const g = new MediaRecorder(DIC.stream);
+  g.ondataavailable = ev => { if (ev.data.size) DIC.trozos.push(ev.data); };
+  g.onstop = async () => {
+    DIC.stream.getTracks().forEach(t => t.stop());
+    DIC.stream = null;
+    const audio = new Blob(DIC.trozos, { type: g.mimeType || 'audio/webm' });
+    dictEstado('Transcribiendo…', true);
+    try {
+      const texto = await transcribir(audio, clave);
+      $('#pPregunta').value = ((DIC.base ? DIC.base + ' ' : '') + texto).trim();
+      dictEstado('Transcripción lista.');
+      if (texto.trim()) quizasPreguntar();
+    } catch (e) {
+      dictEstado('No se pudo transcribir: ' + e.message);
+    }
+  };
+  g.start();
+  DIC.grabador = g; DIC.activo = true;
+  dictEstado(motivo + ' Grabando: hablá y después tocá Detener.');
+}
+
+function detenerDictado() {
+  DIC.activo = false;
+  // El reconocimiento se cierra por su propio onend, que es donde el texto
+  // final ya está completo; acá sólo se le pide que corte.
+  if (DIC.rec) { try { DIC.rec.stop(); } catch (_) {} dictEstado('Cerrando el dictado…'); return; }
+  if (DIC.grabador) {
+    const g = DIC.grabador; DIC.grabador = null;
+    try { g.stop(); } catch (_) {}
+    dictEstado('Procesando el audio…', true);
+  }
+}
+
+function quizasPreguntar() {
+  const chk = $('#pAuto');
+  if (chk && chk.checked && $('#pPregunta').value.trim()) preguntar();
+}
+
+async function transcribir(audio, clave) {
+  const fd = new FormData();
+  fd.append('file', audio, 'pregunta.webm');
+  fd.append('model', 'gpt-4o-mini-transcribe');
+  fd.append('language', 'es');
+  const r = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST', headers: { authorization: 'Bearer ' + clave }, body: fd });
+  const j = await r.json();
+  if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
+  return j.text || '';
+}
+
+async function preguntar() {
+  const prov = $('#pProv').value;
+  const modo = $('#pModo').value;
+  const clave = (prov === 'anthropic' ? $('#kAnthropic') : $('#kOpenai')).value.trim();
+  const pregunta = $('#pPregunta').value.trim();
+  const est = $('#pEstado'), out = $('#pRespuesta');
+
+  if (!clave) { est.textContent = `Falta la clave de ${prov === 'anthropic' ? 'Anthropic' : 'OpenAI'}.`; return; }
+  if (!pregunta) { est.textContent = 'Escribí una pregunta.'; return; }
+
+  // La clave del modelo avanzado no se guarda, a propósito.
+  if (modo === 'economico') guardarLocal('anubis_clave_' + prov, clave);
+
+  const modelo = MODELOS[prov][modo];
+  est.textContent = 'Consultando ' + modelo + '…';
+  out.innerHTML = '';
+  $('#pEnviar').disabled = true;
+
+  const usuario = 'Datos:\n```json\n' + JSON.stringify(contextoParaModelo()) + '\n```\n\nPregunta: ' + pregunta;
+
+  try {
+    const texto = await llamarModelo(prov, modelo, clave, SISTEMA, usuario);
+    out.innerHTML = `<div class="respuesta">${formatoTexto(texto)}</div>`;
+    est.textContent = 'Respondió ' + modelo + '.';
+  } catch (e) {
+    est.textContent = '';
+    out.innerHTML = errorHTML(e);
+  } finally {
+    $('#pEnviar').disabled = false;
+  }
+}
+
+// ====================================================================
+// ETAPA 3 · Tablas derivadas (código puro) y vista de agenda
+// ====================================================================
+
+let umbralHecho = 0.30;
+let hechosCache = null;
+
+function renderAgenda() {
+  const posts = seleccion();
+  const cuentas = cuentasDe(posts);
+  const ref = cuentas.find(c => c.rol === 'propia');
+  const clasificados = posts.filter(p => p.ia).length;
+
+  let h = `<h2 class="seccion">Temas y agenda</h2>`;
+
+  if (!clasificados) {
+    h += `<p class="explica">Todavía ninguna publicación está clasificada. El modelo económico lee cada texto
+      y le pone tema, entidades y registro. Eso es lo que permite agrupar por hecho y responder qué cubrió
+      la competencia que vos no.</p>`;
+    h += panelClasificar(posts.length, 0);
+    $('#vAgenda').innerHTML = h;
+    engancharClasificar();
+    return;
+  }
+
+  h += panelClasificar(posts.length, clasificados);
+
+  // ---- distribución y rendimiento por tema -------------------------
+  // Cada cuenta se cuenta por separado. Un gráfico con la suma de todas se lee
+  // como si describiera a una sola: el subtítulo dice "todas las cuentas" pero
+  // el resto de la página se desglosa por cuenta, y el ojo lee lo que espera.
+  const clasif = posts.filter(p => p.ia);
+  const porCuentaTema = new Map();   // handle -> { tema -> {n, reac} }
+  const totalTema = {};
+  const ordenTemas = [];
+  for (const p of clasif) {
+    const t = p.ia.tema, hd = p.cuenta_monitoreada;
+    const reac = SENALES.reduce((s, x) => s + (metrica(p, x.k) || 0), 0);
+    if (!porCuentaTema.has(hd)) porCuentaTema.set(hd, {});
+    const m = porCuentaTema.get(hd);
+    if (!m[t]) m[t] = { n: 0, reac: 0 };
+    m[t].n++; m[t].reac += reac;
+    if (!totalTema[t]) { totalTema[t] = { n: 0, reac: 0 }; ordenTemas.push(t); }
+    totalTema[t].n++; totalTema[t].reac += reac;
+  }
+  ordenTemas.sort((a, b) => totalTema[b].n - totalTema[a].n);
+  const conDatos = cuentas.filter(c => porCuentaTema.has(c.handle));
+
+  const foco = ref || conDatos[0];
+  const mFoco = foco ? porCuentaTema.get(foco.handle) : {};
+  const nFoco = Object.values(mFoco).reduce((s, d) => s + d.n, 0);
+  const nMerc = clasif.length;
+  const listaCuentas = conDatos.map(c => '@' + c.handle).join(', ');
+
+  h += `<h2 class="seccion">Qué se publicó</h2>
+    <p class="explica">Las dos lecturas en paralelo. A la izquierda, <strong>el mercado entero</strong>:
+    las ${conDatos.length} cuentas sumadas, que es la agenda del día tal como le llega a un lector cualquiera.
+    A la derecha, <strong>${foco ? '@' + escapar(foco.handle) + ' solo' : 'la cuenta de referencia'}</strong>.
+    Ningún número de una tarjeta aparece en la otra: son conjuntos distintos.</p>`;
+
+  h += `<div class="par">`;
+  h += tarjeta('Todos los medios juntos',
+    `${fmt(nMerc)} publicaciones de ${conDatos.length} cuentas: ${escapar(listaCuentas)}`,
+    barras(ordenTemas.map(t => ({
+      et: t, v: totalTema[t].n, vt: fmt(totalTema[t].n),
+      v2: Math.round(100 * totalTema[t].n / nMerc) + '%', color: 'var(--neutro)',
+      tip: `Mercado — ${t}: <b>${fmt(totalTema[t].n)}</b> de ${fmt(nMerc)} publicaciones, ` +
+           `sumando las ${conDatos.length} cuentas`
+    })), { titulo: 'Temas del mercado' }),
+    tablaHTML(['Tema', 'Publicaciones', '% del mercado'],
+      ordenTemas.map(t => [t, fmt(totalTema[t].n), Math.round(100 * totalTema[t].n / nMerc) + '%'])));
+
+  if (foco) {
+    // Cada tarjeta se ordena por su propio valor. Heredar el orden del mercado
+    // dejaba las barras salteadas y el gráfico se volvía ilegible.
+    const temasFoco = ordenTemas.filter(t => mFoco[t]).sort((a, b) => mFoco[b].n - mFoco[a].n);
+    h += tarjeta(`Sólo @${foco.handle}`,
+      `${fmt(nFoco)} publicaciones · el % es sobre su propio total, no sobre el mercado`,
+      barras(temasFoco.map(t => ({
+        et: t, v: mFoco[t].n, vt: fmt(mFoco[t].n),
+        v2: Math.round(100 * mFoco[t].n / nFoco) + '%', color: foco.color,
+        tip: `@${foco.handle} — ${t}: <b>${fmt(mFoco[t].n)}</b> de ${fmt(nFoco)} publicaciones propias.` +
+             `<br>El mercado entero publicó ${fmt(totalTema[t].n)} sobre ese tema.`
+      })), { titulo: `Temas de @${foco.handle}` }),
+      tablaHTML(['Tema', 'Publicaciones', '% de la cuenta', 'Mercado'],
+        temasFoco.map(t =>
+          [t, fmt(mFoco[t].n), Math.round(100 * mFoco[t].n / nFoco) + '%', fmt(totalTema[t].n)])));
+  }
+  h += `</div>`;
+
+  h += tarjeta('Las cuentas lado a lado',
+    'Publicaciones por tema y por cuenta. La última columna es la suma del mercado', '',
+    tablaHTML(['Tema', ...conDatos.map(c => '@' + c.handle), 'Mercado'],
+      ordenTemas.map(t => [t, ...conDatos.map(c => {
+        const d = porCuentaTema.get(c.handle)[t];
+        return d ? fmt(d.n) : '—';
+      }), fmt(totalTema[t].n)])));
+
+  // ---- rendimiento por tema ------------------------------------------
+  h += `<h2 class="seccion">Qué rindió</h2>
+    <p class="explica">Reacciones que consigue una publicación típica de cada tema. Está dividido por la
+    cantidad de piezas, así un tema con muchas publicaciones no gana por volumen. Sólo aparecen los temas
+    con tres o más piezas: con una o dos, el promedio lo decide un caso suelto. Otra vez las dos lecturas:
+    qué rinde en el mercado y qué rinde puertas adentro, que no siempre coinciden.</p>`;
+
+  h += `<div class="par">`;
+  const rendMerc = ordenTemas.filter(t => totalTema[t].n >= 3)
+    .map(t => ({ et: t, v: totalTema[t].reac / totalTema[t].n, color: 'var(--neutro)',
+      vt: fmt(totalTema[t].reac / totalTema[t].n),
+      tip: `Mercado — ${t}: <b>${fmt(totalTema[t].reac / totalTema[t].n)}</b> reacciones por publicación ` +
+           `sobre ${fmt(totalTema[t].n)} piezas de las ${conDatos.length} cuentas` }))
+    .sort((a, b) => b.v - a.v);
+  h += tarjeta('Todos los medios juntos',
+    'Reacciones por publicación en el conjunto del mercado',
+    barras(rendMerc, { titulo: 'Rendimiento del mercado' }),
+    tablaHTML(['Tema', 'Reacciones por publicación', 'Piezas'],
+      rendMerc.map(f => [f.et, f.vt, fmt(totalTema[f.et].n)])));
+
+  if (foco) {
+    const rendFoco = ordenTemas.filter(t => mFoco[t] && mFoco[t].n >= 3)
+      .map(t => {
+        const v = mFoco[t].reac / mFoco[t].n;
+        const mer = totalTema[t].reac / totalTema[t].n;
+        return { et: t, v, vt: fmt(v), color: foco.color, v2: 'mercado ' + fmt(mer),
+          tip: `@${foco.handle} — ${t}: <b>${fmt(v)}</b> reacciones por publicación ` +
+               `sobre ${fmt(mFoco[t].n)} piezas propias.<br>El mercado entero: ${fmt(mer)}.` };
+      }).sort((a, b) => b.v - a.v);
+    h += tarjeta(`Sólo @${foco.handle}`,
+      'Reacciones por publicación de esta cuenta, con el promedio del mercado al lado',
+      barras(rendFoco, { titulo: `Rendimiento de @${foco.handle}` }),
+      tablaHTML(['Tema', 'Reacciones por publicación', 'Piezas', 'Mercado'],
+        rendFoco.map(f => [f.et, f.vt, fmt(mFoco[f.et].n), f.v2.replace('mercado ', '')])));
+  }
+  h += `</div>`;
+
+  h += tarjeta('El rendimiento lado a lado',
+    'Reacciones por publicación, por tema y por cuenta. Un guion significa menos de tres piezas', '',
+    tablaHTML(['Tema', ...conDatos.map(c => '@' + c.handle), 'Mercado'],
+      ordenTemas.map(t => [t, ...conDatos.map(c => {
+        const d = porCuentaTema.get(c.handle)[t];
+        return d && d.n >= 3 ? fmt(d.reac / d.n) : '—';
+      }), totalTema[t].n >= 3 ? fmt(totalTema[t].reac / totalTema[t].n) : '—'])));
+
+  // ---- hechos -------------------------------------------------------
+  const hechos = hechosCache || (hechosCache = construirHechos(posts, umbralHecho));
+  const compartidos = hechos.filter(x => x.cuentas.length > 1);
+
+  h += `<h2 class="seccion">La agenda del día</h2>
+    <p class="explica">Un <strong>hecho</strong> es un acontecimiento que varias cuentas cubrieron.
+    Se agrupan comparando los nombres propios que extrajo el modelo y las palabras poco frecuentes del día.
+    El emparejamiento lo hace el código, no un modelo: es exacto y no cuesta nada.</p>
+    <div class="selDenom">
+      <span class="etq">Exigencia del agrupamiento</span>
+      <input type="range" id="umbral" min="15" max="60" value="${Math.round(umbralHecho * 100)}"
+        style="width:180px;padding:0">
+      <span style="font-size:12px;color:var(--tinta-3)" id="umbralTxt">${Math.round(umbralHecho * 100)}% —
+        ${compartidos.length} hechos compartidos de ${hechos.length} grupos</span>
+    </div>`;
+
+  h += tarjeta('Hechos que cubrió más de una cuenta', 'Ordenados por cuántas cuentas lo cubrieron',
+    '', tablaHechos(compartidos.slice(0, 25), cuentas));
+
+  // ---- huecos y exclusivos ------------------------------------------
+  if (ref) {
+    const cubreRef = x => x.cuentas.some(c => c.toLowerCase() === ref.handle.toLowerCase());
+    const huecos = compartidos.filter(x => !cubreRef(x));
+    const exclusivos = hechos.filter(x => x.cuentas.length === 1 && cubreRef(x));
+
+    h += `<h2 class="seccion">Huecos de cobertura</h2>
+      <p class="explica">Hechos que cubrieron dos o más cuentas de la comparación y
+      <strong>@${escapar(ref.handle)} no</strong>. Es la tabla más accionable de todo el panel:
+      cada fila es algo que pasó, que otros contaron y que vos no.</p>`;
+    h += tarjeta(`${huecos.length} hueco(s)`, `Sobre ${compartidos.length} hechos compartidos del período`,
+      '', huecos.length ? tablaHechos(huecos.slice(0, 25), cuentas)
+        : '<p class="explica" style="margin:0">Ningún hecho compartido quedó sin cubrir. Con un solo día esto puede ser suerte.</p>');
+
+    h += `<h2 class="seccion">Solamente @${escapar(ref.handle)}</h2>
+      <p class="explica">Publicaciones cuyo asunto no apareció en ninguna otra cuenta. Puede ser una primicia
+      o un tema que a nadie más le interesó: las reacciones ayudan a distinguirlo.</p>`;
+    const exOrden = exclusivos.sort((a, b) => b.reacciones - a.reacciones).slice(0, 15);
+    h += tarjeta(`${exclusivos.length} publicación(es) sin eco`, 'Ordenadas por reacciones',
+      '', tablaHechos(exOrden, cuentas));
+  }
+
+  // ---- quién llegó primero -------------------------------------------
+  if (compartidos.length) {
+    const primeros = {};
+    for (const x of compartidos) {
+      const c = x.primero.cuenta_monitoreada;
+      primeros[c] = (primeros[c] || 0) + 1;
+    }
+    const filas = cuentas.map(c => ({
+      et: '@' + c.handle, v: primeros[c.handle] || 0, color: c.color,
+      vt: fmt(primeros[c.handle] || 0),
+      v2: Math.round(100 * (primeros[c.handle] || 0) / compartidos.length) + '%',
+      tip: `@${c.handle} llegó primero en ${fmt(primeros[c.handle] || 0)} de ${compartidos.length} hechos`
+    })).sort((a, b) => b.v - a.v);
+
+    h += `<h2 class="seccion">Quién llegó primero</h2>
+      <p class="explica">De los hechos que cubrió más de una cuenta, quién publicó antes. Es una medida de
+      primicia que sale sola de las marcas de hora, sin modelo de por medio.
+      <strong>Una advertencia:</strong> mide quién publicó primero <em>en X</em> entre las cuentas observadas,
+      no quién tuvo la información primero.</p>`;
+    h += tarjeta('Primero en publicar', `Sobre ${compartidos.length} hechos compartidos`,
+      barras(filas, { titulo: 'Quién llegó primero' }),
+      tablaHTML(['Cuenta', 'Veces primero', 'Porcentaje'],
+        filas.map(f => [f.et, f.vt, f.v2])));
+  }
+
+  $('#vAgenda').innerHTML = h;
+  engancharClasificar();
+  const u = $('#umbral');
+  if (u) u.addEventListener('change', e => {
+    umbralHecho = parseInt(e.target.value, 10) / 100;
+    hechosCache = null;
+    renderAgenda();
+  });
+}
+
+function tablaHechos(hechos, cuentas) {
+  const colorDe = h => (cuentas.find(c => c.handle === h) || {}).color || 'var(--neutro)';
+  return `<div class="envTabla"><table class="datos">
+    <thead><tr><th>Hecho</th><th>Tema</th><th>Cuentas</th><th>Primero</th><th>Reacciones</th><th></th></tr></thead>
+    <tbody>${hechos.map(x => `<tr>
+      <td style="max-width:420px">${escapar(x.titulo)}</td>
+      <td>${escapar(x.tema)}</td>
+      <td style="text-align:left;white-space:nowrap">${x.cuentas.map(c =>
+        `<i class="sw" style="background:${colorDe(c)};margin-right:3px" title="@${escapar(c)}"></i>`).join('')}
+        <span style="color:var(--tinta-3)">${x.cuentas.length}</span></td>
+      <td style="text-align:left;white-space:nowrap">@${escapar(x.primero.cuenta_monitoreada)}<br>
+        <span style="color:var(--tinta-3);font-size:11px">${new Date(x.primero.publicado_iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</span></td>
+      <td>${fmt(x.reacciones)}</td>
+      <td><a href="${escapar(x.primero.url)}" target="_blank" rel="noopener">ver</a></td>
+    </tr>`).join('')}</tbody></table></div>`;
+}
+
+function panelClasificar(total, hechos) {
+  const pend = total - hechos;
+  const prov = leerLocal('anubis_prov') || 'anthropic';
+  return `<div class="tarjeta">
+    <div class="filtros" style="margin:0 0 12px;padding:0;border:0;background:transparent">
+      <label for="cProv">Proveedor</label>
+      <select id="cProv">
+        <option value="anthropic"${prov === 'anthropic' ? ' selected' : ''}>Anthropic</option>
+        <option value="openai"${prov === 'openai' ? ' selected' : ''}>OpenAI</option>
+      </select>
+      <input type="password" id="cClave" placeholder="clave de API" style="flex:1;min-width:200px"
+        value="${escapar(claveDe(prov))}">
+      <button class="primario" id="btnClasificar" style="background:var(--marca);color:#fff"
+        ${pend ? '' : 'disabled'}>Clasificar ${fmt(pend)} publicación(es)</button>
+    </div>
+    <p class="sub" style="margin:0">
+      ${fmt(hechos)} de ${fmt(total)} ya clasificadas${hechos ? ' · lo ya procesado no se vuelve a pagar' : ''}.
+      Se usa el modelo económico y se cachea por hash del texto.
+      <span id="cEstado" style="color:var(--acento);font-weight:600"></span></p>
+  </div>`;
+}
+
+function engancharClasificar() {
+  const b = $('#btnClasificar');
+  if (!b) return;
+  $('#cProv').addEventListener('change', e => {
+    guardarLocal('anubis_prov', e.target.value);
+    $('#cClave').value = claveDe(e.target.value);
+  });
+  b.addEventListener('click', async () => {
+    const prov = $('#cProv').value, clave = $('#cClave').value.trim();
+    if (!clave) { $('#cEstado').textContent = ' Falta la clave.'; return; }
+    guardarLocal('anubis_clave_' + prov, clave);
+    b.disabled = true;
+    const modelo = MODELOS[prov].economico;
+    try {
+      const r = await clasificar(seleccion(), prov, clave, modelo,
+        (i, n) => { $('#cEstado').textContent = ` procesando ${i}/${n}…`; });
+      hechosCache = null;
+      console.log('[ANUBIS] clasificación', r);
+      renderAgenda();
+    } catch (e) {
+      $('#cEstado').textContent = ' ' + e.message;
+      b.disabled = false;
+    }
+  });
+}
+
+// ====================================================================
+// Informe descargable (.pptx, que es lo que abre Keynote)
+// ====================================================================
+// El formato .key es cerrado y no se puede escribir desde código. Keynote
+// abre .pptx de forma nativa, y como los gráficos van como figuras y no como
+// imágenes, cada barra se puede editar adentro de Keynote.
+
+// Los colores viven como variables CSS; el pptx necesita hex literal.
+function aHex(colorCss) {
+  const v = String(colorCss || '').match(/var\((--[\w-]+)\)/);
+  const bruto = v
+    ? getComputedStyle(document.documentElement).getPropertyValue(v[1]).trim()
+    : String(colorCss || '');
+  const m = bruto.match(/^#?([0-9a-f]{6})$/i);
+  if (m) return m[1];
+  const rgb = bruto.match(/rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
+  if (rgb) return [1, 2, 3].map(i => (+rgb[i]).toString(16).padStart(2, '0')).join('');
+  return '2A78D6';
+}
+
+function fechaPeriodo() {
+  const e = D.ejecuciones.find(x => x.periodo && x.periodo.desde);
+  if (!e) return '';
+  const d = new Date(e.periodo.desde);
+  return d.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+async function armarInforme() {
+  const posts = seleccion();
+  const cuentas = cuentasDe(posts);
+  if (!cuentas.length) throw new Error('No hay datos en la selección actual.');
+  const ag = cuentas.map(agregados);
+  const ref = ag.find(a => a.rol === 'propia');
+  const mercado = $('#fMercado').value;
+  const periodo = fechaPeriodo();
+
+  const d = IncertisPptx.crear({ titulo: `Anubis · ${mercado} · ${periodo}` });
+
+  d.portada('Monitoreo de X',
+    mercado + (periodo ? ' · ' + periodo : ''),
+    'Incertis Anubis · generado el ' + new Date().toLocaleDateString('es-AR'));
+
+  // ---- actividad -----------------------------------------------------
+  d.seccion('Lo que decide la redacción',
+    'Cuántas veces publicó cada cuenta. Es actividad: depende sólo del medio y por sí sola no dice nada sobre el resultado.');
+
+  d.barras('Publicaciones en el período', 'Actividad — no es una medida de éxito',
+    ag.slice().sort((a, b) => b.n - a.n)
+      .map(a => ({ et: '@' + a.handle, v: a.n, vt: fmt(a.n), color: aHex(a.color) })));
+
+  // ---- audiencia -----------------------------------------------------
+  d.seccion('Lo que decide la audiencia',
+    'Estas cifras no las controla el medio. Van por publicación, no en total: un total premia a quien más publica.');
+
+  const orden = ag.slice().sort((a, b) => b.reaccionesPorPost - a.reaccionesPorPost);
+  d.barras('Reacciones que consigue una publicación promedio',
+    'Me gusta, guardados, respuestas y compartidos sumados, dividido por la cantidad de publicaciones',
+    orden.map(a => ({ et: '@' + a.handle, v: a.reaccionesPorPost,
+      vt: fmt(a.reaccionesPorPost) + '   (' + fmt(a.n) + ' posts)', color: aHex(a.color) })),
+    'Trata un me gusta y un compartido como equivalentes, que no lo son. El desglose está en la tabla siguiente.');
+
+  d.barras('Alcance mediano por publicación', 'Vistas de la publicación típica',
+    ag.slice().sort((a, b) => (b.vistasMed || 0) - (a.vistasMed || 0))
+      .map(a => ({ et: '@' + a.handle, v: a.vistasMed, vt: fmt(a.vistasMed), color: aHex(a.color) })));
+
+  d.tabla('Las cuatro señales', 'Por publicación, ordenadas por lo que le cuesta a una persona producirlas',
+    ['Cuenta'].concat(SENALES.map(s => s.n)).concat(['Total']),
+    orden.map(a => ['@' + a.handle]
+      .concat(SENALES.map(s => fmt1(a[s.k + 'Tot'] / a.n)))
+      .concat([fmt(a.reaccionesPorPost)])));
+
+  // ---- agenda, si está clasificado -----------------------------------
+  const clasificados = posts.filter(p => p.ia);
+  if (clasificados.length > 10) {
+    const hechos = hechosCache || construirHechos(posts, umbralHecho);
+    const compartidos = hechos.filter(x => x.cuentas.length > 1);
+
+    d.seccion('La agenda del día',
+      'Acontecimientos que cubrió más de una cuenta. El agrupamiento compara nombres propios y palabras poco frecuentes del día.');
+
+    if (compartidos.length) {
+      d.tabla('Hechos compartidos', `${compartidos.length} en el período · los diez con más cobertura`,
+        ['Hecho', 'Cuentas', 'Primero', 'Reacciones'],
+        compartidos.slice(0, 10).map(x => [
+          x.titulo.slice(0, 70), String(x.cuentas.length),
+          '@' + x.primero.cuenta_monitoreada, fmt(x.reacciones)]));
+    }
+
+    if (ref) {
+      const cubreRef = x => x.cuentas.some(c => c.toLowerCase() === ref.handle.toLowerCase());
+      const huecos = compartidos.filter(x => !cubreRef(x));
+      d.tabla('Huecos de cobertura', `Cubrió la competencia y @${ref.handle} no · ${huecos.length} en el período`,
+        ['Hecho', 'Cuentas que lo cubrieron', 'Reacciones'],
+        (huecos.length ? huecos.slice(0, 10) : []).map(x => [
+          x.titulo.slice(0, 70), x.cuentas.map(c => '@' + c).join(', ').slice(0, 44), fmt(x.reacciones)]),
+        huecos.length ? '' : 'Ningún hecho compartido quedó sin cubrir en este período.');
+
+      const primeros = {};
+      for (const x of compartidos) {
+        const c = x.primero.cuenta_monitoreada;
+        primeros[c] = (primeros[c] || 0) + 1;
+      }
+      d.barras('Quién llegó primero', `Sobre ${compartidos.length} hechos compartidos`,
+        ag.map(a => ({ et: '@' + a.handle, v: primeros[a.handle] || 0,
+          vt: fmt(primeros[a.handle] || 0), color: aHex(a.color) }))
+          .sort((x, y) => y.v - x.v),
+        'Mide quién publicó primero en X entre las cuentas observadas, no quién tuvo la información primero.');
+    }
+
+    // Dos láminas, nunca una: el agregado del mercado y la cuenta propia por
+    // separado. Una sola lámina con la suma se lee como si fuera del cliente.
+    const merc = {}, propio = {};
+    for (const p of clasificados) {
+      merc[p.ia.tema] = (merc[p.ia.tema] || 0) + 1;
+      if (ref && p.cuenta_monitoreada === ref.handle) propio[p.ia.tema] = (propio[p.ia.tema] || 0) + 1;
+    }
+    const nMerc = clasificados.length;
+    d.barras('Qué se publicó · todos los medios juntos',
+      `${fmt(nMerc)} publicaciones de ${cuentas.length} cuentas sumadas: ${cuentas.map(c => '@' + c.handle).join(', ')}`,
+      Object.entries(merc).sort((a, b) => b[1] - a[1])
+        .map(([t, v]) => ({ et: t, v, vt: fmt(v) + '   (' + Math.round(100 * v / nMerc) + '%)',
+          color: aHex('var(--neutro)') })),
+      'Es la agenda del mercado, no la de ninguna cuenta en particular.');
+
+    if (ref && Object.keys(propio).length) {
+      const nProp = Object.values(propio).reduce((s, v) => s + v, 0);
+      d.barras(`Qué se publicó · sólo @${ref.handle}`,
+        `${fmt(nProp)} publicaciones propias · el porcentaje es sobre su propio total`,
+        Object.entries(propio).sort((a, b) => b[1] - a[1])
+          .map(([t, v]) => ({ et: t, v, vt: fmt(v) + '   (' + Math.round(100 * v / nProp) + '%)',
+            color: aHex(ref.color) })),
+        'Ninguna cifra de esta lámina aparece en la anterior: son conjuntos distintos.');
+    }
+  }
+
+  // ---- metodología ----------------------------------------------------
+  const truncados = posts.filter(p => p.texto_truncado).length;
+  const sinEvidencia = posts.filter(p => !p.evidencia).length;
+
+  d.texto('Cómo se hizo y qué no dice', [
+    `Fuente: la cronología pública de cada cuenta en X, leída desde una sesión real de Chrome. No se usó la API de X.`,
+    `Alcance: ${fmt(posts.length)} publicaciones de ${cuentas.length} cuentas${periodo ? ', período ' + periodo : ''}.`,
+    `Todas las métricas se leyeron en un único momento, así que una publicación de la mañana acumuló más horas de exposición que una de la noche. Las cifras sirven para comparar órdenes de magnitud, no para un ranking fino.`,
+    truncados ? `${fmt(truncados)} publicaciones tienen el texto cortado por el "Mostrar más" de X, así que el análisis de contenido trabaja con material incompleto en esos casos.` : '',
+    sinEvidencia ? `${fmt(sinEvidencia)} publicaciones quedaron sin captura de pantalla.` : '',
+    `La cobertura refleja lo que la interfaz de X mostró durante la captura, no necesariamente el universo completo de publicaciones.`
+  ].filter(Boolean));
+
+  return { blob: await d.blob(), nombre: `Anubis_${mercado}_${(periodo || '').replace(/\s+/g, '-')}.pptx`, laminas: d.cantidad };
+}
+
+// ====================================================================
+// Render y eventos
+// ====================================================================
+function render() {
+  if (D.vista === 'comparado') renderComparado();
+  else if (D.vista === 'propio') renderPropio();
+  else if (D.vista === 'agenda') renderAgenda();
+  else if (D.vista === 'pelicula') renderPelicula();
+  else renderPreguntas();
+  for (const [v, id] of [['comparado', '#vComparado'], ['propio', '#vPropio'],
+                         ['agenda', '#vAgenda'], ['preguntas', '#vPreguntas'],
+                         ['pelicula', '#vPelicula']]) {
+    $(id).classList.toggle('oculto', D.vista !== v);
+  }
+}
+
+$$('.pestanas .chip').forEach(b => b.addEventListener('click', () => {
+  D.vista = b.dataset.vista;
+  $$('.pestanas .chip').forEach(o => o.setAttribute('aria-pressed', String(o === b)));
+  render();
+}));
+
+['#fMercado', '#fPeriodo', '#fAlcance'].forEach(s => $(s).addEventListener('change', () => {
+  hechosCache = null;   // cambió la selección: los hechos se recalculan
+  if (typeof DISPONIBLES !== 'undefined') DISPONIBLES.listo = false;
+  render();
+}));
+
+$('#btnCargar').addEventListener('click', () => $('#selCarpeta').click());
+$('#btnCargar2').addEventListener('click', () => $('#selCarpeta').click());
+$('#btnGitHub').addEventListener('click', mostrarGitHub);
+$('#btnArchivos').addEventListener('click', () => $('#selArchivos').click());
+$('#selCarpeta').addEventListener('change', e => cargarArchivos(e.target.files));
+$('#selArchivos').addEventListener('change', e => cargarArchivos(e.target.files));
+
+$('#btnInforme').addEventListener('click', async () => {
+  const b = $('#btnInforme');
+  if (!D.posts.length) { alert('Cargá una captura antes de generar el informe.'); return; }
+  const texto = b.textContent;
+  b.disabled = true; b.textContent = 'Armando…';
+  try {
+    const { blob, nombre, laminas } = await armarInforme();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = nombre;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    console.log(`[ANUBIS] informe de ${laminas} láminas, ${Math.round(blob.size / 1024)} KB`);
+  } catch (e) {
+    console.error(e);
+    alert('No se pudo armar el informe: ' + e.message);
+  } finally {
+    b.disabled = false; b.textContent = texto;
+  }
+});
+
+$('#btnTema').addEventListener('click', () => {
+  const act = document.documentElement.getAttribute('data-theme');
+  const nuevo = act === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', nuevo);
+  guardarLocal('anubis_tema', nuevo);
+  render();
+});
+(function () { const t = leerLocal('anubis_tema'); if (t) document.documentElement.setAttribute('data-theme', t); })();
+
+// Cambiar el denominador vuelve a dibujar las cuatro señales
+document.addEventListener('click', ev => {
+  const d = ev.target.closest('[data-denom]');
+  if (!d) return;
+  denomActual = d.dataset.denom;
+  render();
+});
+
+// Alternar tabla / gráfico
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('[data-tabla]');
+  if (!b) return;
+  const id = b.dataset.tabla;
+  const abierta = b.getAttribute('aria-pressed') === 'true';
+  b.setAttribute('aria-pressed', String(!abierta));
+  document.getElementById(id + '-g').classList.toggle('oculto', !abierta);
+  document.getElementById(id + '-t').classList.toggle('oculto', abierta);
+});
+
+// Tooltip: el área sensible es mayor que la marca
+document.addEventListener('mouseover', ev => {
+  const m = ev.target.closest('[data-tip]');
+  if (m) mostrarTip(ev, m.dataset.tip);
+});
+document.addEventListener('mousemove', ev => {
+  const m = ev.target.closest('[data-tip]');
+  if (m) mostrarTip(ev, m.dataset.tip); else ocultarTip();
+});
+document.addEventListener('mouseout', ev => { if (ev.target.closest('[data-tip]')) ocultarTip(); });
+
+// Dentro de la extensión, la carpeta de trabajo ya está elegida: se ofrece
+// directamente la lista de capturas en vez del selector de archivos.
+prepararDelNavegador().catch(e => console.warn('[ANUBIS] sin capturas en el navegador', e));
+prepararCarpeta().catch(e => console.warn('[ANUBIS] sin carpeta de trabajo', e));
+
+</script>
+<script>
+'use strict';
+// INCERTIS ANUBIS · película v1.0
+//
+// Arma un video con las capturas de pantalla de la ejecución, a 24 cuadros por
+// segundo. No es un adorno: un día de cobertura pasando en quince segundos
+// muestra el ritmo y la repetición de la agenda de un modo que ninguna tabla
+// consigue.
+//
+// Cómo se graba: el canvas entrega cuadros a demanda (captureStream(0) más
+// requestFrame) y MediaRecorder los va codificando. MediaRecorder trabaja en
+// tiempo real, así que el bucle marca el compás con el reloj: un cuadro cada
+// 41,67 ms. La música, si hay, se suma como pista de audio del mismo stream y
+// suena mientras se graba, que es lo que la mete adentro del archivo.
+
+const PELI = {
+  fps: 24,
+  grabando: false,
+  cancelar: false,
+  ctx: null,           // un solo AudioContext para toda la sesión
+  audio: null,         // { tipo:'buffer'|'elemento', buffer, elemento, nodo, duracion, nombre }
+  // 720p por defecto: a 1080p el codificador del navegador no llega a 24 cuadros
+  // por segundo y empieza a descartar, así que la película sale con saltos.
+  formatos: {
+    horizontal:   { a: 1280, h: 720,  n: 'Horizontal · 1280×720' },
+    horizontalHD: { a: 1920, h: 1080, n: 'Horizontal · 1920×1080 (puede saltear cuadros)' },
+    cuadrado:     { a: 1080, h: 1080, n: 'Cuadrado · 1080×1080' },
+    vertical:     { a: 1080, h: 1920, n: 'Vertical · 1080×1920' }
+  }
+};
+
+const PLACA_ENTRADA = 2.5;   // segundos
+const PLACA_SALIDA = 2;
+const FUENTE = '-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+
+// --------------------------------------------------------------------
+// Datos
+// --------------------------------------------------------------------
+// Qué evidencias hay de verdad. Tener la referencia en el post no alcanza: un
+// paquete cargado desde disco trae el nombre del archivo pero no la imagen, y
+// contar referencias en vez de imágenes hacía que la película saliera vacía.
+const DISPONIBLES = { claves: new Map(), listo: false };
+
+async function revisarDisponibles() {
+  DISPONIBLES.claves = new Map();
+  const ejecs = [...new Set(seleccion().map(p => p.ejecucion_id).filter(Boolean))];
+  for (const id of ejecs) {
+    try { DISPONIBLES.claves.set(id, await Almacen.clavesEvidencia(id)); }
+    catch (e) { DISPONIBLES.claves.set(id, new Set()); }
+  }
+  DISPONIBLES.listo = true;
+}
+
+function hayImagen(p) {
+  if (!p.evidencia || !p.evidencia.evidencia_id) return false;
+  if (typeof EVIDENCIA_EN_DISCO !== 'undefined' && EVIDENCIA_EN_DISCO.has(p.evidencia.evidencia_id)) return true;
+  const s = DISPONIBLES.claves.get(p.ejecucion_id);
+  return !!(s && s.has(p.evidencia.evidencia_id));
+}
+
+function cuadrosDePelicula() {
+  const sel = seleccion();
+  const referidas = sel.filter(p => p.evidencia && p.evidencia.evidencia_id);
+  const posts = DISPONIBLES.listo ? referidas.filter(hayImagen) : referidas;
+  const cuentas = cuentasDe(sel);
+  const color = {};
+  for (const c of cuentas) color[c.handle] = c.color;
+  return { posts, cuentas, color, referidas: referidas.length, seleccionadas: sel.length };
+}
+
+function diasDelPeriodo(posts) {
+  const dias = new Set(posts.map(p => (p.publicado_iso || '').slice(0, 10)).filter(Boolean));
+  return Math.max(dias.size, 1);
+}
+
+function colorReal(css) {
+  const v = String(css || '').match(/var\((--[\w-]+)\)/);
+  if (!v) return css || '#2A78D6';
+  return getComputedStyle(document.documentElement).getPropertyValue(v[1]).trim() || '#2A78D6';
+}
+
+// --------------------------------------------------------------------
+// Vista
+// --------------------------------------------------------------------
+function renderPelicula() {
+  // Un cambio de filtro mientras se graba borraría el canvas en pleno rodaje.
+  if (PELI.grabando) return;
+  if (!DISPONIBLES.listo) {
+    $('#vPelicula').innerHTML = '<p class="explica">Revisando qué capturas hay guardadas…</p>';
+    revisarDisponibles().then(renderPelicula);
+    return;
+  }
+
+  const { posts, cuentas, referidas, seleccionadas } = cuadrosDePelicula();
+  const faltan = referidas - posts.length;
+
+  let h = `<h2 class="seccion">Película del período</h2>
+    <p class="explica">Las capturas de pantalla, una detrás de otra, a 24 cuadros por segundo.
+    Cada publicación es un cuadro: un día entero de cobertura pasa en segundos y se ve el ritmo,
+    la repetición y los momentos en que todos publican lo mismo. Sale del navegador, sin servidor.</p>`;
+
+  // El caso que rompía todo: las publicaciones dicen tener captura, pero la
+  // imagen no está en el navegador porque el paquete se cargó desde disco.
+  if (faltan > 0) {
+    h += `<div class="aviso" style="margin-bottom:16px">
+      <strong>Faltan ${fmt(faltan)} imágenes.</strong> De ${fmt(referidas)} publicaciones con captura,
+      ${posts.length ? `sólo <strong>${fmt(posts.length)}</strong> tienen la imagen a mano` : 'ninguna tiene la imagen a mano'}.
+      Pasa cuando el paquete se cargó desde archivos y no desde el almacenamiento de la extensión:
+      el <code>posts.jsonl</code> guarda el nombre del archivo, no la foto.
+      <div style="margin-top:12px">
+        <button class="chico" id="vCargarFotos" type="button">Elegir la carpeta de la captura</button>
+        <span id="vFotosEstado" style="font-size:12px;margin-left:10px"></span>
+      </div>
+      <input type="file" id="vArchivoFotos" webkitdirectory directory multiple class="oculto">
+    </div>`;
+  }
+
+  if (!posts.length) {
+    h += `<div class="aviso"><strong>No hay ninguna imagen disponible en esta selección.</strong>
+      De ${fmt(seleccionadas)} publicaciones${referidas ? `, ${fmt(referidas)} declaran captura pero no está guardada` :
+      ', ninguna declara captura: la ejecución corrió con la evidencia visual desactivada'}.</div>`;
+    $('#vPelicula').innerHTML = h;
+    engancharFotos();
+    return;
+  }
+
+  h += `<div class="tarjeta">
+    <div class="cabTarjeta"><div class="crece">
+      <h3>Cómo armarla</h3>
+      <p class="sub">${fmt(posts.length)} imágenes listas de ${fmt(seleccionadas)} publicaciones · ${cuentas.length} cuentas</p>
+    </div></div>
+
+    <div class="filtros" style="margin:0 0 14px;padding:0;border:0;background:transparent">
+      <label for="vOrden">Orden</label>
+      <select id="vOrden">
+        <option value="crono">Cronológico — el día como pasó</option>
+        <option value="cuenta">Por cuenta — un medio después del otro</option>
+      </select>
+      <label for="vFormato">Formato</label>
+      <select id="vFormato">
+        ${Object.entries(PELI.formatos).map(([k, f]) =>
+          `<option value="${k}">${escapar(f.n)}</option>`).join('')}
+      </select>
+      <label for="vRep">Cuadros por captura</label>
+      <select id="vRep">
+        <option value="1">1 — 24 capturas por segundo</option>
+        <option value="2">2 — 12 por segundo</option>
+        <option value="3">3 — 8 por segundo</option>
+        <option value="6">6 — 4 por segundo</option>
+        <option value="12">12 — 2 por segundo</option>
+      </select>
+    </div>
+
+    <div class="filaCarpeta" style="margin-bottom:6px">
+      <span id="vMusicaNombre" class="rutaCarpeta">Sin música</span>
+      <button class="chico" id="vElegirMusica" type="button">Elegir música</button>
+      <button class="chico oculto" id="vQuitarMusica" type="button">Quitar</button>
+      <label class="explica" style="margin:0 0 0 12px;display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="vAjustar" style="width:auto;margin:0"> que dure lo que la música</label>
+    </div>
+    <p class="explica" style="margin:0 0 14px">Sirve un audio (MP3, M4A, WAV, AAC, OGG, FLAC) o
+      directamente un video (MP4, MOV, WebM): de un video se toma sólo la pista de sonido, la imagen se descarta.</p>
+    <input type="file" id="vArchivoMusica" class="oculto"
+      accept="audio/*,video/*,.mp3,.m4a,.wav,.aac,.ogg,.flac,.mp4,.mov,.m4v,.webm">
+
+    <p class="explica" style="margin:0 0 14px" id="vDuracion"></p>
+
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button class="primario" id="vGrabar" style="background:var(--marca);color:#fff">Armar la película</button>
+      <button id="vProbar" title="Diez capturas, para ver que todo funcione antes de esperar la película entera">Probar con 10</button>
+      <button id="vCancelar" disabled>Cancelar</button>
+      <span id="vEstado" style="font-size:12px;color:var(--tinta-3)"></span>
+    </div>
+
+    <div class="barraProgreso" style="margin-top:14px"><div id="vBarra" style="width:0%"></div></div>
+    <canvas id="vLienzo" style="width:100%;margin-top:14px;border-radius:8px;border:1px solid var(--borde);background:#000"></canvas>
+    <div id="vSalida"></div>
+  </div>
+
+  <div class="aviso">
+    <strong>Sobre el formato del archivo.</strong> Se graba en MP4 si Chrome lo permite en esta máquina,
+    y si no en WebM, que Chrome reproduce pero QuickTime y Keynote no. El formato que salió queda dicho
+    al terminar. La grabación va en tiempo real: una película de quince segundos tarda quince segundos.
+  </div>`;
+
+  $('#vPelicula').innerHTML = h;
+  engancharPelicula();
+  actualizarDuracion();
+}
+
+function engancharPelicula() {
+  ['#vOrden', '#vFormato', '#vRep', '#vAjustar'].forEach(s => {
+    const el = $(s); if (el) el.addEventListener('change', actualizarDuracion);
+  });
+  $('#vElegirMusica').addEventListener('click', () => $('#vArchivoMusica').click());
+  $('#vArchivoMusica').addEventListener('change', e => cargarMusica(e.target.files[0]));
+  $('#vQuitarMusica').addEventListener('click', () => {
+    soltarAudio();
+    $('#vMusicaNombre').textContent = 'Sin música';
+    $('#vQuitarMusica').classList.add('oculto');
+    $('#vAjustar').checked = false;
+    actualizarDuracion();
+  });
+  $('#vGrabar').addEventListener('click', () => armarPelicula(0));
+  $('#vProbar').addEventListener('click', () => armarPelicula(10));
+  $('#vCancelar').addEventListener('click', () => { PELI.cancelar = true; });
+  engancharFotos();
+
+  const f = PELI.formatos[$('#vFormato').value];
+  const l = $('#vLienzo');
+  l.width = f.a; l.height = f.h;
+  dibujarPlacaEntrada(l.getContext('2d'), f);
+}
+
+// Recuperar las imágenes de una carpeta de paquete: se guardan en memoria y no
+// en la base, porque son de una sola sesión y no hace falta pagar el espacio.
+function engancharFotos() {
+  const b = $('#vCargarFotos');
+  if (!b) return;
+  b.addEventListener('click', () => $('#vArchivoFotos').click());
+  $('#vArchivoFotos').addEventListener('change', e => {
+    const antes = EVIDENCIA_EN_DISCO.size;
+    let vistas = 0;
+    for (const f of Array.from(e.target.files)) {
+      if (!/\.(jpe?g|png|webp)$/i.test(f.name)) continue;
+      EVIDENCIA_EN_DISCO.set(f.name.replace(/\.[^.]+$/, ''), f);
+      vistas++;
+    }
+    const est = $('#vFotosEstado');
+    if (!vistas) {
+      est.textContent = 'En esa carpeta no hay imágenes. Tiene que ser la carpeta de la captura, la que contiene screenshots/.';
+      return;
+    }
+    est.textContent = `${vistas} imagen(es) encontradas.`;
+    console.log('[ANUBIS] evidencia desde disco:', EVIDENCIA_EN_DISCO.size - antes, 'nuevas');
+    renderPelicula();
+  });
+}
+
+// Un único AudioContext para toda la sesión. Hace falta porque un elemento de
+// video sólo se puede enchufar a un contexto una vez en la vida: si cada
+// grabación creara el suyo, la segunda fallaría.
+function contextoAudio() {
+  if (!PELI.ctx) PELI.ctx = new (window.AudioContext || window.webkitAudioContext)();
+  if (PELI.ctx.state === 'suspended') PELI.ctx.resume();
+  return PELI.ctx;
+}
+
+function soltarAudio() {
+  if (PELI.audio && PELI.audio.elemento) {
+    try { PELI.audio.elemento.pause(); } catch (e) {}
+    try { URL.revokeObjectURL(PELI.audio.elemento.src); } catch (e) {}
+    try { PELI.audio.nodo.disconnect(); } catch (e) {}
+  }
+  PELI.audio = null;
+}
+
+// Dos caminos según el archivo. Un audio suelto se decodifica entero a memoria:
+// es exacto y se puede volver a empezar cuantas veces se quiera. Un MP4 o un
+// MOV no se pueden decodificar así —el contenedor trae video—, así que se
+// reproduce en un elemento y se le saca la pista de sonido en vivo.
+async function cargarMusica(archivo) {
+  if (!archivo) return;
+  soltarAudio();
+  $('#vMusicaNombre').textContent = 'Leyendo ' + archivo.name + '…';
+  const esVideo = /^video\//.test(archivo.type) || /\.(mp4|mov|m4v|webm|avi|mkv)$/i.test(archivo.name);
+
+  if (!esVideo) {
+    try {
+      const buf = await archivo.arrayBuffer();
+      const decodificado = await contextoAudio().decodeAudioData(buf);
+      PELI.audio = { tipo: 'buffer', buffer: decodificado, duracion: decodificado.duration, nombre: archivo.name };
+      anunciarAudio();
+      return;
+    } catch (e) {
+      // Un .m4a raro o un contenedor que decodeAudioData no traga: se intenta
+      // por el camino del elemento antes de darse por vencido.
+      console.warn('[ANUBIS] decodeAudioData falló, voy por el elemento:', e.message);
+    }
+  }
+
+  try {
+    const el = document.createElement(esVideo ? 'video' : 'audio');
+    el.src = URL.createObjectURL(archivo);
+    el.preload = 'auto';
+    el.crossOrigin = 'anonymous';
+    await new Promise((res, rej) => {
+      el.onloadedmetadata = res;
+      el.onerror = () => rej(new Error('Chrome no puede reproducir ese archivo'));
+      setTimeout(() => rej(new Error('el archivo tardó demasiado en abrir')), 20000);
+    });
+    if (!isFinite(el.duration) || !el.duration) throw new Error('no se pudo leer la duración');
+    const nodo = contextoAudio().createMediaElementSource(el);
+    PELI.audio = { tipo: 'elemento', elemento: el, nodo, duracion: el.duration, nombre: archivo.name, esVideo };
+    anunciarAudio();
+  } catch (e) {
+    PELI.audio = null;
+    $('#vMusicaNombre').textContent = 'No se pudo usar ese archivo: ' + e.message;
+    actualizarDuracion();
+  }
+}
+
+function anunciarAudio() {
+  const a = PELI.audio;
+  $('#vMusicaNombre').textContent = `${a.nombre} · ${segundos(a.duracion)}` +
+    (a.esVideo ? ' · sólo el audio del video' : '');
+  $('#vQuitarMusica').classList.remove('oculto');
+  actualizarDuracion();
+}
+
+function segundos(s) {
+  const m = Math.floor(s / 60), r = Math.round(s % 60);
+  return m ? `${m}:${String(r).padStart(2, '0')}` : `${r} s`;
+}
+
+// Cuántos cuadros dura cada captura. Con música y ajuste pedido, se reparte el
+// tiempo que sobra entre las capturas en vez de dejar la música colgando.
+function repeticiones() {
+  const manual = parseInt($('#vRep').value, 10) || 1;
+  if (!($('#vAjustar') && $('#vAjustar').checked) || !PELI.audio) return manual;
+  const { posts } = cuadrosDePelicula();
+  const placas = (PLACA_ENTRADA + PLACA_SALIDA) * PELI.fps;
+  const disponibles = PELI.audio.duracion * PELI.fps - placas;
+  if (disponibles <= 0 || !posts.length) return manual;
+  return Math.max(1, Math.min(48, Math.round(disponibles / posts.length)));
+}
+
+function actualizarDuracion() {
+  const { posts } = cuadrosDePelicula();
+  if (!posts.length || !$('#vDuracion')) return;
+  const f = PELI.formatos[$('#vFormato').value];
+  const l = $('#vLienzo');
+  if (l.width !== f.a) { l.width = f.a; l.height = f.h; dibujarPlacaEntrada(l.getContext('2d'), f); }
+  const rep = repeticiones();
+  const dur = PLACA_ENTRADA + PLACA_SALIDA + posts.length * rep / PELI.fps;
+  const ajustado = $('#vAjustar') && $('#vAjustar').checked && PELI.audio;
+  $('#vDuracion').innerHTML =
+    `Van a entrar <strong>${fmt(posts.length)} capturas</strong> a ${rep} cuadro${rep === 1 ? '' : 's'} cada una, ` +
+    `más las dos placas: <strong>${segundos(dur)}</strong> de película.` +
+    (PELI.audio ? ` La música dura ${segundos(PELI.audio.duracion)}${ajustado ? ', y el ritmo se ajustó para igualarla' : ''}.` : '');
+}
+
+// --------------------------------------------------------------------
+// Dibujo
+// --------------------------------------------------------------------
+function fondo(ctx, f) {
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, f.a, f.h);
+}
+
+// Las placas llevan una línea que avanza. No es adorno: un codificador de video
+// descarta cuadros idénticos consecutivos, y con la placa quieta la pista de
+// imagen terminaba antes que la de sonido.
+function lineaDeTiempo(ctx, f, avance) {
+  if (avance === undefined) return;
+  const m = Math.round(f.a * 0.14), y = Math.round(f.h * 0.86);
+  ctx.fillStyle = '#1e2732';
+  ctx.fillRect(m, y, f.a - m * 2, Math.max(2, Math.round(f.h * 0.003)));
+  ctx.fillStyle = '#8b98a8';
+  ctx.fillRect(m, y, (f.a - m * 2) * Math.min(1, Math.max(0, avance)), Math.max(2, Math.round(f.h * 0.003)));
+}
+
+function dibujarPlacaEntrada(ctx, f, datos, avance) {
+  const d = datos || datosPlaca();
+  fondo(ctx, f);
+  const cx = f.a / 2;
+  const esc = f.a / 1920;
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#8b98a8';
+  ctx.font = `600 ${Math.round(34 * esc)}px ${FUENTE}`;
+  ctx.letterSpacing = `${Math.round(6 * esc)}px`;
+  ctx.fillText('INCERTIS ANUBIS', cx, f.h * 0.34);
+  ctx.letterSpacing = '0px';
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `700 ${Math.round(96 * esc)}px ${FUENTE}`;
+  ctx.fillText(d.titulo, cx, f.h * 0.48);
+
+  ctx.fillStyle = '#d6dde6';
+  ctx.font = `400 ${Math.round(46 * esc)}px ${FUENTE}`;
+  ctx.fillText(d.capturas, cx, f.h * 0.57);
+
+  ctx.fillStyle = '#6f7d8d';
+  ctx.font = `400 ${Math.round(32 * esc)}px ${FUENTE}`;
+  ctx.fillText(d.fecha, cx, f.h * 0.64);
+
+  // Las cuentas, cada una con su color, como leyenda de lo que se va a ver.
+  const cuentas = d.cuentas;
+  if (cuentas.length) {
+    ctx.font = `600 ${Math.round(30 * esc)}px ${FUENTE}`;
+    const anchos = cuentas.map(c => ctx.measureText('@' + c.handle).width);
+    const sep = 46 * esc;
+    let x = cx - (anchos.reduce((s, w) => s + w, 0) + sep * (cuentas.length - 1)) / 2;
+    const y = f.h * 0.73;
+    ctx.textAlign = 'left';
+    cuentas.forEach((c, i) => {
+      ctx.fillStyle = colorReal(c.color);
+      ctx.fillText('@' + c.handle, x, y);
+      ctx.fillRect(x, y + 12 * esc, anchos[i], 4 * esc);
+      x += anchos[i] + sep;
+    });
+    ctx.textAlign = 'center';
+  }
+  lineaDeTiempo(ctx, f, avance);
+}
+
+// El nombre del ámbito sólo entra si dice algo. Los paquetes viejos no traen
+// mercado y quedaba escrito "X en Sin mercado", que no significa nada.
+function ambito() {
+  const m = (($('#fMercado') && $('#fMercado').value) || '').trim();
+  if (m && !/^sin (mercado|nombre)$/i.test(m)) return m;
+  return '';
+}
+
+function datosPlaca() {
+  const { posts, cuentas } = cuadrosDePelicula();
+  const dias = diasDelPeriodo(posts.length ? posts : seleccion());
+  const donde = ambito();
+  return {
+    titulo: `${dias} día${dias === 1 ? '' : 's'} de X${donde ? ' en ' + donde : ''}`,
+    capturas: `${fmt(posts.length)} capturas · ${cuentas.length} cuenta${cuentas.length === 1 ? '' : 's'}`,
+    fecha: fechaPeriodo() || new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' }),
+    cuentas
+  };
+}
+
+function dibujarPlacaSalida(ctx, f, resumen, avance) {
+  fondo(ctx, f);
+  const cx = f.a / 2, esc = f.a / 1920;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `700 ${Math.round(72 * esc)}px ${FUENTE}`;
+  ctx.fillText(resumen.linea1, cx, f.h * 0.45);
+  ctx.fillStyle = '#8b98a8';
+  ctx.font = `400 ${Math.round(38 * esc)}px ${FUENTE}`;
+  ctx.fillText(resumen.linea2, cx, f.h * 0.54);
+  ctx.font = `600 ${Math.round(28 * esc)}px ${FUENTE}`;
+  ctx.letterSpacing = `${Math.round(5 * esc)}px`;
+  ctx.fillText('INCERTIS ANUBIS', cx, f.h * 0.66);
+  ctx.letterSpacing = '0px';
+  lineaDeTiempo(ctx, f, avance);
+}
+
+// Una captura: se recorta la publicación dentro de la pantalla y se encaja
+// entera en el cuadro. El recorte viene del recolector, en píxeles CSS, y la
+// imagen está en píxeles de pantalla: hay que multiplicar por el dpr.
+function dibujarCaptura(ctx, f, img, post, color, i, total) {
+  fondo(ctx, f);
+  const bandaAlta = Math.round(f.h * 0.075);
+  const cajaY = bandaAlta;
+  const cajaAlto = f.h - bandaAlta * 2;
+  const cajaAncho = f.a - Math.round(f.a * 0.06);
+  const cajaX = (f.a - cajaAncho) / 2;
+
+  // El recorte viene en píxeles CSS y la imagen puede estar en cualquier escala
+  // (Retina, o reducida al decodificar). El factor sale de comparar el ancho de
+  // la imagen con el ancho del viewport: así no hay que confiar en el dpr.
+  const ev = post.evidencia || {};
+  let sx = 0, sy = 0, sw = img.width, sh = img.height;
+  const anchoCss = ev.viewport && ev.viewport.ancho;
+  if (ev.recorte && anchoCss && ev.recorte.ancho > 40 && ev.recorte.alto > 40) {
+    const k = img.width / anchoCss;
+    sx = Math.max(0, Math.round(ev.recorte.x * k));
+    sy = Math.max(0, Math.round(ev.recorte.y * k));
+    sw = Math.min(img.width - sx, Math.round(ev.recorte.ancho * k));
+    sh = Math.min(img.height - sy, Math.round(ev.recorte.alto * k));
+    if (sw < 40 || sh < 40) { sx = 0; sy = 0; sw = img.width; sh = img.height; }
+  }
+
+  const escala = Math.min(cajaAncho / sw, cajaAlto / sh);
+  const w = Math.round(sw * escala), alto = Math.round(sh * escala);
+  const x = Math.round(cajaX + (cajaAncho - w) / 2);
+  const y = Math.round(cajaY + (cajaAlto - alto) / 2);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(x, y, w, alto);
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, alto);
+
+  // Franja inferior: quién publicó, a qué hora y cuánto falta.
+  const esc = f.a / 1920;
+  const yb = f.h - bandaAlta + Math.round(34 * esc);
+  ctx.textAlign = 'left';
+  ctx.fillStyle = colorReal(color);
+  ctx.font = `700 ${Math.round(30 * esc)}px ${FUENTE}`;
+  ctx.fillText('@' + post.cuenta_monitoreada, cajaX, yb);
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#7d8a99';
+  ctx.font = `400 ${Math.round(28 * esc)}px ${FUENTE}`;
+  const hora = post.publicado_iso
+    ? new Date(post.publicado_iso).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : '';
+  ctx.fillText(hora, cajaX + cajaAncho, yb);
+
+  const py = f.h - Math.round(24 * esc);
+  ctx.fillStyle = '#1e2732';
+  ctx.fillRect(cajaX, py, cajaAncho, Math.round(4 * esc));
+  ctx.fillStyle = colorReal(color);
+  ctx.fillRect(cajaX, py, cajaAncho * ((i + 1) / total), Math.round(4 * esc));
+}
+
+// --------------------------------------------------------------------
+// Grabación
+// --------------------------------------------------------------------
+function tipoDeVideo() {
+  const candidatos = [
+    'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+    'video/mp4;codecs=avc1.42E01E',
+    'video/mp4',
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8,opus',
+    'video/webm'
+  ];
+  return candidatos.find(t => { try { return MediaRecorder.isTypeSupported(t); } catch (e) { return false; } }) || '';
+}
+
+async function armarPelicula(limite) {
+  if (PELI.grabando) return;
+  const { posts: todos, color } = cuadrosDePelicula();
+  if (!todos.length) return;
+
+  const orden = $('#vOrden').value;
+  let posts = todos.slice().sort((a, b) => orden === 'cuenta'
+    ? (a.cuenta_monitoreada.localeCompare(b.cuenta_monitoreada) ||
+       Date.parse(a.publicado_iso || 0) - Date.parse(b.publicado_iso || 0))
+    : Date.parse(a.publicado_iso || 0) - Date.parse(b.publicado_iso || 0));
+  if (limite) posts = posts.slice(0, limite);
+
+  const f = PELI.formatos[$('#vFormato').value];
+  const rep = repeticiones();
+  const lienzo = $('#vLienzo');
+  lienzo.width = f.a; lienzo.height = f.h;
+  const ctx = lienzo.getContext('2d', { alpha: false });
+
+  const tipo = tipoDeVideo();
+  if (!tipo) { $('#vEstado').textContent = 'Este navegador no puede grabar video.'; return; }
+
+  PELI.grabando = true; PELI.cancelar = false;
+  $('#vGrabar').disabled = true; $('#vCancelar').disabled = false;
+  if ($('#vProbar')) $('#vProbar').disabled = true;
+  $('#vSalida').innerHTML = '';
+  $('#vEstado').textContent = 'Preparando…';
+
+  const stream = lienzo.captureStream(0);
+  const pista = stream.getVideoTracks()[0];
+
+  // La música se reproduce durante la grabación: es lo que la deja adentro del
+  // archivo. Sin esto habría que muxear a mano, que en el navegador no se puede.
+  let fuente = null, ganancia = null;
+  if (PELI.audio) {
+    const ctx = contextoAudio();
+    const destino = ctx.createMediaStreamDestination();
+    ganancia = ctx.createGain();
+    ganancia.connect(destino);
+    ganancia.connect(ctx.destination);   // y por los parlantes, para oírla mientras graba
+
+    const durPeli = PLACA_ENTRADA + PLACA_SALIDA + posts.length * rep / PELI.fps;
+    const fin = Math.min(durPeli, PELI.audio.duracion);
+    // Entrada y salida suaves: un corte seco al final suena a error.
+    ganancia.gain.setValueAtTime(0.0001, ctx.currentTime);
+    ganancia.gain.exponentialRampToValueAtTime(1, ctx.currentTime + 0.8);
+    if (fin > 2) {
+      ganancia.gain.setValueAtTime(1, ctx.currentTime + fin - 1.5);
+      ganancia.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + fin);
+    }
+
+    if (PELI.audio.tipo === 'buffer') {
+      fuente = ctx.createBufferSource();
+      fuente.buffer = PELI.audio.buffer;
+      fuente.connect(ganancia);
+      fuente.start();
+    } else {
+      // El elemento se reengancha en cada grabación; el nodo de origen es el
+      // mismo de siempre, porque un elemento sólo admite uno.
+      try { PELI.audio.nodo.disconnect(); } catch (e) {}
+      PELI.audio.nodo.connect(ganancia);
+      try { PELI.audio.elemento.currentTime = 0; } catch (e) {}
+      PELI.audio.elemento.muted = false;
+      await PELI.audio.elemento.play();
+    }
+    destino.stream.getAudioTracks().forEach(t => stream.addTrack(t));
+    PELI.gananciaActual = ganancia;
+  }
+
+  // El caudal sigue al tamaño del cuadro, no al revés: fijarlo alto en 720p
+  // desperdicia y fijarlo bajo en 1080p ensucia las capturas de texto.
+  const rec = new MediaRecorder(stream, {
+    mimeType: tipo, videoBitsPerSecond: Math.round(f.a * f.h * 0.06) });
+  const trozos = [];
+  rec.ondataavailable = e => { if (e.data.size) trozos.push(e.data); };
+  const terminado = new Promise(r => { rec.onstop = r; });
+
+  const paso = 1000 / PELI.fps;
+  let cuadro = 0;
+  const totalCuadros = Math.round((PLACA_ENTRADA + PLACA_SALIDA) * PELI.fps) + posts.length * rep;
+  const t0ref = { t: 0 };
+
+  const esperar = async () => {
+    cuadro++;
+    pista.requestFrame();
+    const objetivo = t0ref.t + cuadro * paso;
+    const falta = objetivo - performance.now();
+    if (falta > 0) await new Promise(r => setTimeout(r, falta));
+    if (cuadro % 12 === 0) {
+      $('#vBarra').style.width = Math.round(100 * cuadro / totalCuadros) + '%';
+      $('#vEstado').textContent = `Grabando… ${Math.round(100 * cuadro / totalCuadros)}%`;
+    }
+  };
+
+  // Decodificación por adelantado: la ventana da medio segundo de colchón, que
+  // alcanza de sobra para no perder el compás de 24 cuadros.
+  const VENTANA = 6;
+  const cache = new Map();
+  const pedir = i => {
+    if (i >= posts.length) return null;
+    if (!cache.has(i)) cache.set(i, cargarImagen(posts[i], f.a));
+    return cache.get(i);
+  };
+
+  try {
+    rec.start();
+    t0ref.t = performance.now();
+
+    const placa = datosPlaca();
+    const nEntrada = Math.round(PLACA_ENTRADA * PELI.fps);
+    for (let i = 0; i < nEntrada; i++) {
+      dibujarPlacaEntrada(ctx, f, placa, (i + 1) / nEntrada);
+      await esperar();
+    }
+
+    for (let i = 0; i < VENTANA; i++) pedir(i);
+
+    let usadas = 0;
+    for (let i = 0; i < posts.length; i++) {
+      if (PELI.cancelar) break;
+      const img = await pedir(i);
+      pedir(i + VENTANA);
+      if (img) {
+        dibujarCaptura(ctx, f, img, posts[i], color[posts[i].cuenta_monitoreada], i, posts.length);
+        usadas++;
+      }
+      for (let k = 0; k < rep; k++) await esperar();
+      if (img && img.close) img.close();
+      cache.delete(i);
+    }
+
+    const cierre = { linea1: `${fmt(usadas)} publicaciones`, linea2: placa.titulo };
+    const nSalida = Math.round(PLACA_SALIDA * PELI.fps);
+    for (let i = 0; i < nSalida; i++) {
+      dibujarPlacaSalida(ctx, f, cierre, (i + 1) / nSalida);
+      await esperar();
+    }
+
+    rec.stop();
+    detenerAudio(fuente);
+    await terminado;
+
+    const blob = new Blob(trozos, { type: tipo });
+    if (!blob.size) throw new Error('la grabación quedó vacía (0 bytes)');
+    if (!usadas) throw new Error('ninguna imagen se pudo leer: la película habría sido sólo las placas');
+    const ext = tipo.startsWith('video/mp4') ? 'mp4' : 'webm';
+    const nombre = `Anubis_${($('#fMercado').value || 'pelicula').replace(/\s+/g, '-')}.${ext}`;
+    const url = URL.createObjectURL(blob);
+    $('#vSalida').innerHTML = `
+      <div style="margin-top:16px">
+        <video src="${url}" controls style="width:100%;border-radius:8px;background:#000"></video>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap">
+          <a class="primario" id="vBajar" href="${url}" download="${escapar(nombre)}"
+             style="background:var(--marca);color:#fff;text-decoration:none;display:inline-block;padding:9px 16px;border-radius:7px">Descargar el video</a>
+          <span style="font-size:12px;color:var(--tinta-3)">${escapar(nombre)} ·
+            ${(blob.size / 1048576).toFixed(1)} MB · ${escapar(ext.toUpperCase())}${PELI.audio ? ' con música' : ''}</span>
+        </div>
+      </div>`;
+    $('#vEstado').textContent = PELI.cancelar
+      ? `Cancelada: quedaron ${fmt(usadas)} capturas.`
+      : `Listo: ${fmt(usadas)} capturas en ${ext.toUpperCase()}.`;
+  } catch (e) {
+    console.error('[ANUBIS] película', e);
+    $('#vEstado').textContent = '';
+    $('#vSalida').innerHTML = `<div class="aviso" style="margin-top:14px">
+      <strong>No se pudo armar la película:</strong> ${escapar(e.message)}.
+      <br><br>El detalle completo está en la consola del panel (clic derecho, Inspeccionar, pestaña Console).
+      Formato de grabación: <code>${escapar(tipo)}</code>.</div>`;
+    try { rec.stop(); } catch (x) {}
+  } finally {
+    detenerAudio(fuente);
+    PELI.grabando = false;
+    $('#vGrabar').disabled = false;
+    if ($('#vProbar')) $('#vProbar').disabled = false;
+    $('#vCancelar').disabled = true;
+    $('#vBarra').style.width = '100%';
+  }
+}
+
+// Primero el disco de esta sesión, después el almacenamiento de la extensión.
+// Se decodifica ya reducida al ancho del cuadro: una captura de pantalla de
+// Retina ocupa catorce megas descomprimida y se necesitan doce a la vez.
+// El contexto no se cierra: es el mismo de toda la sesión y cerrarlo dejaría
+// inservible el elemento de video, que no se puede volver a enchufar.
+function detenerAudio(fuente) {
+  if (fuente) { try { fuente.stop(); } catch (e) {} }
+  if (PELI.audio && PELI.audio.tipo === 'elemento') {
+    try { PELI.audio.elemento.pause(); } catch (e) {}
+    try { PELI.audio.nodo.disconnect(); } catch (e) {}
+  }
+  if (PELI.gananciaActual) {
+    try { PELI.gananciaActual.disconnect(); } catch (e) {}
+    PELI.gananciaActual = null;
+  }
+}
+
+async function cargarImagen(post, anchoDestino) {
+  const id = post.evidencia && post.evidencia.evidencia_id;
+  if (!id) return null;
+  let blob = null;
+  if (typeof EVIDENCIA_EN_DISCO !== 'undefined' && EVIDENCIA_EN_DISCO.has(id)) {
+    blob = EVIDENCIA_EN_DISCO.get(id);
+  } else {
+    try {
+      const reg = await Almacen.evidenciaUna(post.ejecucion_id, id);
+      if (reg && reg.bytes) blob = new Blob([reg.bytes], { type: 'image/jpeg' });
+    } catch (e) { return null; }
+  }
+  if (!blob) return null;
+  try {
+    const opciones = anchoDestino ? { resizeWidth: anchoDestino, resizeQuality: 'high' } : undefined;
+    return await createImageBitmap(blob, opciones);
+  } catch (e) {
+    try { return await createImageBitmap(blob); } catch (x) { return null; }
+  }
+}
+
+</script>
+</body>
+</html>
