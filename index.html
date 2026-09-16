@@ -329,7 +329,7 @@ button.cliente:disabled { opacity: .5; cursor: default; }
 
 <header class="barra">
   <span class="logo">INCERTIS ANUBIS</span>
-  <span class="sub">Panel de análisis · v3.8</span>
+  <span class="sub">Panel de análisis · v3.9</span>
   <span class="der">
     <button class="fantasma" id="btnTema" title="Cambiar tema">Tema</button>
     <button class="fantasma" id="btnInforme" title="Descargar el informe en .pptx, que Keynote abre">Descargar informe</button>
@@ -2037,6 +2037,11 @@ const CORTES_INCOMPLETOS = {
   tope_de_scrolls: 'se cortó por el tope de scrolls',
   tope_de_publicaciones: 'se cortó por el tope de publicaciones',
   tope_de_tiempo: 'se cortó por el tope de minutos',
+  // Éste faltaba, y era el más común de todos: X deja de entregar
+  // publicaciones —por lentitud o por límite de peticiones— y el recorrido se
+  // queda sin nada que leer a mitad del día. Sin esta línea, esas capturas
+  // entraban al análisis como si estuvieran completas.
+  sin_publicaciones_nuevas: 'X dejó de entregar publicaciones antes de llegar al inicio del día',
   fallo_de_scroll: 'falló el desplazamiento',
   fallo_de_lectura: 'falló la lectura de la cronología',
   detenido_por_operador: 'se detuvo a mano',
@@ -2050,8 +2055,19 @@ function coberturaIncompleta(posts) {
   for (const e of D.ejecuciones) {
     if (ejec !== '__todas' && e.id !== ejec) continue;
     const r = e.resumen || {};
-    // Dos formas según de dónde vino la captura: el resumen completo de un
-    // paquete, o el mapa compacto que viaja en el índice de GitHub.
+    // Las capturas nuevas dicen derecho viejo cuáles quedaron incompletas: el
+    // recolector ya sabe si llegó o no al inicio del período, que es la única
+    // pregunta que importa. Se usa eso cuando está.
+    if (Array.isArray(r.incompletas)) {
+      const cortes = r.cortes || {};
+      for (const handle of r.incompletas) {
+        if (!enJuego.has(handle)) continue;
+        avisos.push({ handle, motivo: cortes[handle] || 'sin_publicaciones_nuevas',
+                      dia: (e.periodo && e.periodo.desde) || e.id });
+      }
+      continue;
+    }
+    // Capturas viejas: sólo está el motivo, así que se juzga por ahí.
     const pares = r.cortes ? Object.entries(r.cortes)
       : (r.cuentas || []).map(c => [c.handle, c.motivo_corte]);
     for (const [handle, motivo] of pares) {
@@ -2070,12 +2086,17 @@ function avisoCobertura(posts) {
   const lista = Object.entries(porCuenta).map(([h, a]) =>
     `<strong>@${escapar(h)}</strong> (${escapar(CORTES_INCOMPLETOS[a[0].motivo])}` +
     (a.length > 1 ? `, en ${a.length} días` : '') + ')').join(', ');
+  const porX = avisos.some(a => a.motivo === 'sin_publicaciones_nuevas');
   return `<div class="aviso" style="margin-bottom:16px">
-    <strong>Cobertura incompleta.</strong> ${lista}.
+    <strong>Cobertura incompleta: este análisis no es comparable.</strong> ${lista}.
     Esas cuentas publicaron más de lo que quedó capturado, y no se sabe cuánto más.
     Cualquier comparación de volumen con las demás las subestima; las medidas por
-    publicación sufren menos, pero tampoco son exactas. Para arreglarlo, subí el tope
-    en <em>Parámetros de recorrido</em> y volvé a correr ese día: el archivo se reemplaza.</div>`;
+    publicación sufren menos, pero tampoco son exactas.
+    ${porX ? `Cuando X deja de entregar publicaciones suele ser límite de peticiones:
+      pasa con las cuentas que más publican y después de un rato de recorrido.
+      Volvé a correr esa cuenta sola, más tarde, y con la sesión de X recién abierta.`
+           : `Subí el tope en <em>Parámetros de recorrido</em> y volvé a correr ese día.`}
+    El archivo se reemplaza, así que recapturar el mismo día lo corrige.</div>`;
 }
 
 function agregados(c) {
